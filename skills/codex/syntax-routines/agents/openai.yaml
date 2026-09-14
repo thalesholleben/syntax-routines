@@ -1,0 +1,4 @@
+interface:
+  display_name: "Syntax Routines"
+  short_description: "Rotinas agendadas de Claude Code, Codex e scripts neste PC"
+  default_prompt: "Use $syntax-routines para consultar e, com a confirmação do usuário, cadastrar rotinas agendadas no Syntax Routines."

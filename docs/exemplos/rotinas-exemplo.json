@@ -1,0 +1,52 @@
+{
+  "routines": [
+    {
+      "name": "Resumo semanal do Google Ads",
+      "agentKind": "CLAUDE",
+      "directory": "clientes/loja-exemplo",
+      "model": null,
+      "effort": "high",
+      "timeoutMinutes": 60,
+      "isFallbackEnabled": true,
+      "days": [1],
+      "time": "09:00",
+      "intervalMinutes": null,
+      "prompt": "Leia o relatório da conta de anúncios da semana passada em relatorios/ e escreva um resumo com oportunidades de melhoria em resumos/AAAA-MM-DD.md. Se o arquivo de hoje já existir, não faça nada.",
+      "command": "",
+      "missedPolicy": "RUN_ON_BOOT",
+      "isEnabled": true
+    },
+    {
+      "name": "Publicar fila do Instagram",
+      "agentKind": "SCRIPT",
+      "directory": "ferramentas/instagram",
+      "model": null,
+      "effort": "",
+      "timeoutMinutes": 20,
+      "isFallbackEnabled": false,
+      "days": [0, 1, 2, 3, 4, 5, 6],
+      "time": "00:00",
+      "intervalMinutes": 15,
+      "prompt": "",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File publicar.ps1",
+      "missedPolicy": "SKIP",
+      "isEnabled": true
+    },
+    {
+      "name": "Conferir backup diário",
+      "agentKind": "SCRIPT",
+      "directory": "ferramentas/syntax-routines",
+      "model": null,
+      "effort": "",
+      "timeoutMinutes": 15,
+      "isFallbackEnabled": false,
+      "days": [0, 1, 2, 3, 4, 5, 6],
+      "time": "08:00",
+      "intervalMinutes": null,
+      "prompt": "",
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts\\check-backup.ps1 -LatestJson D:\\Backups\\logs\\latest.json",
+      "missedPolicy": "RUN_ON_BOOT",
+      "isEnabled": true
+    }
+  ]
+}

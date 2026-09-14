@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  test:
+    name: typecheck, testes, build e e2e (Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run skills:check
+      - run: npm run build
+      # O runner do GitHub ja traz o Chrome; o smoke usa channel "chrome" e agente falso.
+      - run: npm run e2e
+      - run: npm run test:ps1
+        shell: pwsh
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots
+          path: e2e/.output/*.png
+          if-no-files-found: ignore
+
+  secrets:
+    name: gitleaks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Chamada direta em vez da gitleaks-action: a action calcula "commit-base^" e quebra no primeiro push.
+      - name: Instala o gitleaks
+        run: |
+          curl -sSL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | tar -xz gitleaks
+          sudo mv gitleaks /usr/local/bin/gitleaks
+      - name: Histórico do git
+        run: gitleaks git --no-banner --redact --exit-code 2 .
+      - name: Arquivos do checkout
+        run: gitleaks dir --no-banner --redact --exit-code 2 .

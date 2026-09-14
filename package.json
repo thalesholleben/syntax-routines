@@ -1,0 +1,58 @@
+{
+  "name": "syntax-routines",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Scheduled Claude Code, Codex and script routines on Windows, with an e-mail alert when they fail. An extension of Syntax Ops.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/thalesholleben/syntax-routines.git"
+  },
+  "author": "SyntaxLab Tecnologia LTDA",
+  "engines": {
+    "node": ">=24.13"
+  },
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "tsx watch server/src/index.ts --dev",
+    "dev:web": "vite --host 127.0.0.1 --port 5190",
+    "build": "npm run typecheck && vite build && esbuild server/src/index.ts --bundle --platform=node --format=esm --target=node24 --packages=external --outfile=dist/server/index.mjs && esbuild scripts/routines-cli.ts --bundle --platform=node --format=esm --target=node24 --packages=external --outfile=dist/routines.mjs",
+    "start": "node --disable-warning=ExperimentalWarning dist/server/index.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "e2e": "node e2e/smoke.mjs",
+    "import": "tsx --disable-warning=ExperimentalWarning scripts/import-routines.ts",
+    "test:ps1": "pwsh -File service/listener.test.ps1 && pwsh -File scripts/check-backup.test.ps1",
+    "routines": "tsx --disable-warning=ExperimentalWarning scripts/routines-cli.ts",
+    "skills:check": "node scripts/check-skills.mjs",
+    "skills:install": "node scripts/install-skill.mjs"
+  },
+  "dependencies": {
+    "@fontsource/montserrat": "^5.3.0",
+    "@tailwindcss/vite": "^4.3.3",
+    "clsx": "^2.1.1",
+    "express": "^5.2.1",
+    "lucide-react": "^1.45.0",
+    "nodemailer": "^9.1.1",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "tailwindcss": "^4.3.3",
+    "zod": "^4.6.2"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/node": "^24.13.4",
+    "@types/nodemailer": "^8.0.1",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.1",
+    "concurrently": "^10.0.5",
+    "esbuild": "^0.28.2",
+    "playwright-core": "^1.63.0",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.0"
+  }
+}

@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="310" viewBox="0 0 1400 310" role="img" aria-labelledby="title desc">
+<title id="title">Syntax Routines</title><desc id="desc">Scheduled Claude Code, Codex and script routines on Windows, with an e-mail alert when they fail.</desc>
+<rect width="1400" height="310" rx="12" fill="#0a0a0a"/><rect x="1" y="1" width="1398" height="308" rx="12" fill="none" stroke="#292929"/>
+<path d="M32 32h28M32 32v28M1368 32h-28M1368 32v28M32 278h28M32 278v-28M1368 278h-28M1368 278v-28" stroke="#1e9dc8" stroke-opacity=".45" fill="none"/>
+<text x="78" y="52" fill="#a0a29a" font-family="ui-monospace, Consolas, monospace" font-size="15" letter-spacing="3">CLAUDE CODE + CODEX + SCRIPTS / ON TIME, ON THIS PC</text>
+<text x="78" y="136" fill="#f3f3f0" font-family="Montserrat, 'Segoe UI', Arial, sans-serif" font-size="74" font-weight="700" letter-spacing="-2">Syntax</text>
+<text x="78" y="206" fill="#1e9dc8" font-family="Montserrat, 'Segoe UI', Arial, sans-serif" font-size="74" font-weight="700" letter-spacing="-2">Routines</text>
+<g transform="translate(730 84)">
+  <g fill="#a0a29a" font-family="ui-monospace, Consolas, monospace" font-size="13" letter-spacing="2">
+    <text x="9" y="0">MON</text><text x="69" y="0">TUE</text><text x="129" y="0">WED</text><text x="189" y="0">THU</text><text x="249" y="0">FRI</text><text x="309" y="0">SAT</text><text x="369" y="0">SUN</text>
+  </g>
+  <g fill="none" stroke="#292929">
+    <rect x="0" y="14" width="48" height="30" rx="4"/><rect x="60" y="14" width="48" height="30" rx="4"/><rect x="120" y="14" width="48" height="30" rx="4"/><rect x="180" y="14" width="48" height="30" rx="4"/><rect x="240" y="14" width="48" height="30" rx="4"/><rect x="300" y="14" width="48" height="30" rx="4"/><rect x="360" y="14" width="48" height="30" rx="4"/>
+    <rect x="0" y="54" width="48" height="30" rx="4"/><rect x="60" y="54" width="48" height="30" rx="4"/><rect x="120" y="54" width="48" height="30" rx="4"/><rect x="180" y="54" width="48" height="30" rx="4"/><rect x="240" y="54" width="48" height="30" rx="4"/><rect x="300" y="54" width="48" height="30" rx="4"/><rect x="360" y="54" width="48" height="30" rx="4"/>
+    <rect x="0" y="94" width="48" height="30" rx="4"/><rect x="60" y="94" width="48" height="30" rx="4"/><rect x="120" y="94" width="48" height="30" rx="4"/><rect x="180" y="94" width="48" height="30" rx="4"/><rect x="240" y="94" width="48" height="30" rx="4"/><rect x="300" y="94" width="48" height="30" rx="4"/><rect x="360" y="94" width="48" height="30" rx="4"/>
+  </g>
+  <g fill="#1e9dc8">
+    <rect x="0" y="14" width="48" height="30" rx="4"/><rect x="60" y="14" width="48" height="30" rx="4"/><rect x="120" y="14" width="48" height="30" rx="4"/><rect x="180" y="14" width="48" height="30" rx="4"/><rect x="240" y="14" width="48" height="30" rx="4"/>
+  </g>
+  <g fill="#1e9dc8" fill-opacity=".35">
+    <rect x="0" y="54" width="48" height="30" rx="4"/><rect x="60" y="54" width="48" height="30" rx="4"/><rect x="120" y="54" width="48" height="30" rx="4"/><rect x="180" y="54" width="48" height="30" rx="4"/><rect x="240" y="54" width="48" height="30" rx="4"/><rect x="300" y="54" width="48" height="30" rx="4"/><rect x="360" y="54" width="48" height="30" rx="4"/>
+  </g>
+  <g fill="#5ddcaf" fill-opacity=".8"><rect x="0" y="94" width="48" height="30" rx="4"/></g>
+  <g fill="#05151b" font-family="ui-monospace, Consolas, monospace" font-size="12" font-weight="700">
+    <text x="9" y="34">09:00</text><text x="69" y="34">09:00</text><text x="129" y="34">09:00</text><text x="189" y="34">09:00</text><text x="249" y="34">09:00</text>
+  </g>
+  <g fill="#f3f3f0" font-family="ui-monospace, Consolas, monospace" font-size="12">
+    <text x="12" y="74">15min</text><text x="72" y="74">15min</text><text x="132" y="74">15min</text><text x="192" y="74">15min</text><text x="252" y="74">15min</text><text x="312" y="74">15min</text><text x="372" y="74">15min</text>
+  </g>
+  <text x="9" y="114" fill="#05151b" font-family="ui-monospace, Consolas, monospace" font-size="12" font-weight="700">07:30</text>
+  <g fill="#a0a29a" font-family="ui-monospace, Consolas, monospace" font-size="12">
+    <text x="424" y="34">daily summary · Claude Code</text>
+    <text x="424" y="74">publishing queue · script</text>
+    <text x="424" y="114">repository review · Codex</text>
+  </g>
+</g>
+<path d="M78 245h42" stroke="#1e9dc8"/>
+<text x="137" y="251" fill="#f3f3f0" font-family="ui-monospace, Consolas, monospace" font-size="20">Your routines run on their own. If one fails, you get an e-mail.</text>
+<text x="1320" y="251" text-anchor="end" fill="#a0a29a" font-family="ui-monospace, Consolas, monospace" font-size="15" letter-spacing="1">WINDOWS / NODE 24 / SQLITE</text>
+</svg>

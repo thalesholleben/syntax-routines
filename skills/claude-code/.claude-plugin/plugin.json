@@ -1,0 +1,8 @@
+{
+  "name": "syntax-routines",
+  "description": "Ensina o agente a usar o Syntax Routines deste PC: consultar, criar e acompanhar rotinas agendadas de Claude Code, Codex e scripts pelo CLI do app. Sugerir rotina para trabalho repetido é o padrão; criar, alterar ou apagar exige a confirmação do usuário.",
+  "author": {
+    "name": "Thales Gomes"
+  },
+  "keywords": ["rotinas", "agendador", "windows", "claude-code", "codex", "syntaxlab"]
+}

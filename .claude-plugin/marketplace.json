@@ -1,0 +1,21 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "syntax-routines",
+  "description": "Skill que dá ao agente de código acesso ao Syntax Routines instalado no PC, pelo CLI do próprio app.",
+  "owner": {
+    "name": "Syntax Lab",
+    "email": "contato@syntaxlab.com.br"
+  },
+  "plugins": [
+    {
+      "name": "syntax-routines",
+      "description": "Rotinas agendadas de Claude Code, Codex e scripts no Windows, operadas pelo CLI do app: consultar, criar, alterar, executar agora e ler o log. Sugere rotina para trabalho que se repete e nunca cria nada sem a confirmação do usuário.",
+      "author": {
+        "name": "Thales Gomes"
+      },
+      "category": "productivity",
+      "source": "./skills/claude-code",
+      "homepage": "https://github.com/thalesholleben/syntax-routines/tree/main/skills"
+    }
+  ]
+}
