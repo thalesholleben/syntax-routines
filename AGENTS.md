@@ -59,9 +59,14 @@ None of these commands touches `data/`, calls the real Claude or Codex, or sends
     scheduler. A new CLI command also goes into `skills/*/references/cli.md`, or `npm run skills:check`
     fails.
 14. **E-mail is best-effort and never blocks the queue:** the `notifyFailures` pass runs after dispatch,
-    only for `FAILED` runs of the last 24 h, with 3 attempts; the SMTP secret comes from `.env`
-    (`process.loadEnvFile` in `index.ts`), never from the database or the API. The e2e clears `SMTP_*`
-    from the test server's environment.
+    only for `FAILED` runs of the last 24 h, with 3 attempts. The sending account comes from Settings
+    (`PUT /api/settings/mail`, tested with `verify()` before anything is written) or, without one, from
+    `.env` (`process.loadEnvFile` in `index.ts`). The SMTP password saved from the panel exists only
+    encrypted with DPAPI (`server/src/secret-store.ts`, key `smtp_pass_dpapi`) and never leaves the
+    server: `describeMail` in `server/src/mailer.ts` is the only view the API and the CLI expose, and
+    `app.test.ts`, `routines-cli.test.ts` and the e2e assert that neither the password nor the blob shows
+    up. The e2e clears `SMTP_*` from the test server's environment and configures e-mail through the
+    dialog against `e2e/fake-smtp.mjs`.
 
 ## Where to change what
 
@@ -74,6 +79,7 @@ None of these commands touches `data/`, calls the real Claude or Codex, or sends
 | Theme and visual utilities | `client/src/index.css`, registry in `docs/css-namespaces.md` |
 | Panel and server text, language selector | `client/src/i18n.tsx`, `server/src/i18n.ts`, `client/src/components/LanguageSwitch.tsx` |
 | Routine dialog | `client/src/components/RoutineModal.tsx` |
+| E-mail account, badge and DPAPI | `server/src/mailer.ts`, `server/src/secret-store.ts`, `client/src/components/MailSettingsCard.tsx` |
 | Windows installation | `service/install.ps1`, `service/uninstall.ps1` |
 | Agent CLI and skill packages | `scripts/routines-cli.ts`, `skills/` (gate: `scripts/check-skills.mjs`) |
 | README images and Open Graph | `scripts/screenshots.mjs`, `scripts/render-og.mjs`, `docs/assets/` |

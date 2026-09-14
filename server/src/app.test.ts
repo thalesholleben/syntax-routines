@@ -8,9 +8,10 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createApp } from "./app";
 import { openDb, type Db } from "./db";
-import { MailError, type Mailer, type MailMessage } from "./mailer";
+import { createMailer, type MailMessage, type SmtpConfig, type TransportFactory } from "./mailer";
 import type { RunAgent, RunScript } from "./runner";
 import { createScheduler } from "./scheduler";
+import type { SecretStore } from "./secret-store";
 
 interface HttpResult {
   status: number;
@@ -30,9 +31,13 @@ let port = 0;
 let clock = 0;
 let runnerCalls = 0;
 let scriptCalls = 0;
-let sentMail: MailMessage[] = [];
+let sentMail: (MailMessage & { config: SmtpConfig })[] = [];
+let verifiedConfigs: SmtpConfig[] = [];
 let mailRejectDetail: string | null = null;
-let isMailConfigured = true;
+let verifyError: Error | null = null;
+// Conta do .env do servidor de teste; os testes mexem nela no meio (o mailer le o ambiente a cada uso).
+let testEnv: NodeJS.ProcessEnv = {};
+let vault = new Map<string, string>();
 
 // Runner que nunca termina: basta saber que o agente foi (ou nao foi) disparado.
 const fakeRunAgent: RunAgent = () => {
@@ -43,15 +48,29 @@ const fakeRunScript: RunScript = () => {
   scriptCalls += 1;
   return { done: new Promise(() => {}), kill: () => {} };
 };
-const fakeMailer: Mailer = {
-  get isConfigured() {
-    return isMailConfigured;
+// Mailer de verdade (conta, cofre, selo, validacao) sobre um transporte falso: nada sai pela rede.
+const fakeTransport: TransportFactory = (config) => ({
+  async sendMail(mail) {
+    if (mail.to.endsWith("@recusa.example")) throw Object.assign(new Error("550 5.1.1 caixa inexistente"), { code: "EENVELOPE", responseCode: 550 });
+    if (mailRejectDetail !== null) throw Object.assign(new Error(mailRejectDetail), { code: "EAUTH", responseCode: 535 });
+    sentMail.push({ to: mail.to, subject: mail.subject, text: mail.text, html: mail.html, config });
   },
-  from: "avisos@example.com",
-  async send(message) {
-    if (message.to.endsWith("@recusa.example")) throw new MailError("smtpRejected", "550 caixa inexistente");
-    if (mailRejectDetail !== null) throw new MailError("smtpRejected", mailRejectDetail);
-    sentMail.push(message);
+  async verify() {
+    verifiedConfigs.push(config);
+    if (verifyError) throw verifyError;
+  }
+});
+// Cofre falso: a senha fica num Map e o banco recebe so o apelido.
+const fakeSecrets: SecretStore = {
+  async protect(plain) {
+    const blob = `c0ffee${vault.size + 1}`;
+    vault.set(blob, plain);
+    return blob;
+  },
+  async unprotect(blob) {
+    const plain = vault.get(blob);
+    if (plain === undefined) throw new Error("blob desconhecido");
+    return plain;
   }
 };
 
@@ -65,12 +84,16 @@ beforeEach(async () => {
   runnerCalls = 0;
   scriptCalls = 0;
   sentMail = [];
+  verifiedConfigs = [];
   mailRejectDetail = null;
-  isMailConfigured = true;
+  verifyError = null;
+  testEnv = { SMTP_USER: "avisos@example.com", SMTP_PASS: "senha-do-env", MAIL_FROM_EMAIL: "avisos@example.com" };
+  vault = new Map();
   const now = () => clock;
   const logsDir = path.join(tmp, "logs");
   const scheduler = createScheduler({ db, runAgent: fakeRunAgent, runScript: fakeRunScript, logsDir, now });
-  server = http.createServer(createApp({ db, scheduler, logsDir, mailer: fakeMailer, panelUrl: "http://127.0.0.1:4090/", now }));
+  const mailer = createMailer({ db, env: testEnv, secrets: fakeSecrets, createTransport: fakeTransport, now });
+  server = http.createServer(createApp({ db, scheduler, logsDir, mailer, panelUrl: "http://127.0.0.1:4090/", now }));
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   port = (server.address() as AddressInfo).port;
 });
@@ -165,6 +188,8 @@ const PROTECTED_ROUTES: [string, string][] = [
   ["GET", "/api/settings"],
   ["PUT", "/api/settings"],
   ["POST", "/api/settings/notify-test"],
+  ["PUT", "/api/settings/mail"],
+  ["DELETE", "/api/settings/mail"],
   ["PUT", "/api/settings/password"],
   ["GET", "/api/settings/directories"],
   ["GET", "/api/routines"],
@@ -336,28 +361,94 @@ describe("com sessao", () => {
 
     const semDestino = await request("POST", "/api/settings/notify-test", { cookie });
     expect(semDestino.status).toBe(400);
-    expect(semDestino.body.message).toMatch(/Cadastre/);
+    expect(semDestino.body.message).toMatch(/Configure o e-mail que recebe/);
 
     const saved = await request("PUT", "/api/settings", { cookie, body: settingsBody({ notifyEmail: "  dono@example.com " }) });
     expect(saved.status).toBe(200);
     expect(saved.body.settings.notifyEmail).toBe("dono@example.com");
-    expect(saved.body.mail).toEqual({ isConfigured: true, from: "avisos@example.com" });
+    expect(saved.body.mail).toMatchObject({ isConfigured: true, source: "env", fromEmail: "avisos@example.com", status: { state: "untested" } });
 
     const ok = await request("POST", "/api/settings/notify-test", { cookie });
     expect(ok).toMatchObject({ status: 200, body: { sentTo: "dono@example.com" } });
     expect(sentMail).toHaveLength(1);
     expect(sentMail[0]).toMatchObject({ to: "dono@example.com", subject: "[Syntax Routines] E-mail de teste" });
+    expect((await request("GET", "/api/settings", { cookie })).body.mail.status).toMatchObject({ state: "ok", at: clock });
 
     await request("PUT", "/api/settings", { cookie, body: settingsBody({ notifyEmail: "alguem@recusa.example" }) });
     const recusado = await request("POST", "/api/settings/notify-test", { cookie });
     expect(recusado.status).toBe(502);
-    expect(recusado.body.message).toMatch(/SMTP/);
+    expect(recusado.body.reason).toBe("rejected");
+    expect(recusado.body.message).toMatch(/recusou a mensagem/);
+    expect((await request("GET", "/api/settings", { cookie })).body.mail.status).toMatchObject({ state: "failed", reason: "rejected" });
 
-    isMailConfigured = false;
+    testEnv.SMTP_PASS = "";
     const semSmtp = await request("POST", "/api/settings/notify-test", { cookie });
     expect(semSmtp.status).toBe(400);
     expect(semSmtp.body.message).toMatch(/não configurado/);
     expect((await request("GET", "/api/settings", { cookie })).body.mail.isConfigured).toBe(false);
+  });
+
+  it("e-mail pelo painel: testa antes de gravar, cifra a senha e nunca a devolve", async () => {
+    const cookie = await setupSession();
+    const account = { host: "smtp.gmail.com", port: 587, fromEmail: "painel@example.com", password: "abcd efgh ijkl mnop" };
+
+    const invalid = await request("PUT", "/api/settings/mail", { cookie, body: { account: { ...account, host: "smtp gmail", port: 0 }, notifyEmail: "x" } });
+    expect(invalid.status).toBe(400);
+    expect(invalid.body.details.fieldErrors.account).toEqual(expect.arrayContaining(["Servidor SMTP inválido.", "Porta inválida: use um número de 1 a 65535."]));
+    expect(invalid.body.details.fieldErrors.notifyEmail).toEqual(["E-mail de aviso inválido."]);
+
+    verifyError = Object.assign(new Error("Invalid login: 535-5.7.8 Username and Password not accepted"), { code: "EAUTH", responseCode: 535 });
+    const refused = await request("PUT", "/api/settings/mail", { cookie, body: { account, notifyEmail: "dono@example.com" }, language: "en" });
+    expect(refused.status).toBe(502);
+    expect(refused.body).toEqual({
+      reason: "auth",
+      message:
+        "The server rejected the e-mail or the password. On Gmail, use an app password, not the account password. Detail: Invalid login: 535-5.7.8 Username and Password not accepted"
+    });
+    expect(vault.size).toBe(0);
+    expect((await request("GET", "/api/settings", { cookie })).body).toMatchObject({ settings: { notifyEmail: "" }, mail: { source: "env" } });
+
+    verifyError = null;
+    const saved = await request("PUT", "/api/settings/mail", { cookie, body: { account, notifyEmail: "dono@example.com" } });
+    expect(saved.status).toBe(200);
+    expect(verifiedConfigs.at(-1)).toMatchObject({ host: "smtp.gmail.com", port: 587, user: "painel@example.com", pass: "abcdefghijklmnop" });
+    expect(saved.body).toMatchObject({
+      settings: { notifyEmail: "dono@example.com" },
+      mail: { isConfigured: true, source: "panel", fromEmail: "painel@example.com", status: { state: "ok", at: clock } }
+    });
+    const blob = [...vault.keys()][0];
+    const read = await request("GET", "/api/settings", { cookie });
+    for (const body of [JSON.stringify(saved.body), JSON.stringify(read.body)]) {
+      expect(body).not.toContain("abcdefghijklmnop");
+      expect(body).not.toContain("abcd efgh");
+      expect(body).not.toContain(blob);
+    }
+    const rows = JSON.stringify(db.prepare("SELECT key, value FROM settings").all());
+    expect(rows).not.toContain("abcdefghijklmnop");
+    expect(rows).toContain(blob);
+
+    // O painel vale mais que o .env: o e-mail de teste sai pela conta salva.
+    expect((await request("POST", "/api/settings/notify-test", { cookie })).status).toBe(200);
+    expect(sentMail.at(-1)?.config).toMatchObject({ user: "painel@example.com", pass: "abcdefghijklmnop" });
+
+    // Senha em branco mantem a salva.
+    expect((await request("PUT", "/api/settings/mail", { cookie, body: { account: { ...account, password: "" }, notifyEmail: "dono@example.com" } })).status).toBe(200);
+    expect(verifiedConfigs.at(-1)).toMatchObject({ pass: "abcdefghijklmnop" });
+    expect(vault.size).toBe(1);
+
+    // So o destinatario: nenhuma conexao de teste.
+    const verifications = verifiedConfigs.length;
+    const recipientOnly = await request("PUT", "/api/settings/mail", { cookie, body: { account: null, notifyEmail: "novo@example.com" } });
+    expect(recipientOnly.body.settings.notifyEmail).toBe("novo@example.com");
+    expect(verifiedConfigs).toHaveLength(verifications);
+
+    // Remover volta para o .env; sem conta nenhuma, senha em branco e recusada.
+    const removed = await request("DELETE", "/api/settings/mail", { cookie });
+    expect(removed.body.mail).toMatchObject({ source: "env", fromEmail: "avisos@example.com" });
+    testEnv.SMTP_PASS = "";
+    const noPassword = await request("PUT", "/api/settings/mail", { cookie, body: { account: { ...account, password: " " }, notifyEmail: "dono@example.com" } });
+    expect(noPassword.status).toBe(400);
+    expect(noPassword.body.details.fieldErrors).toEqual({ password: ["Digite a senha."] });
   });
 
   it("diretorio irmao por prefixo responde 400 sem gravar", async () => {
@@ -419,13 +510,24 @@ describe("idioma", () => {
     // O PUT de ajustes sem `language` nao mexe no idioma salvo.
     expect((await request("GET", "/api/settings", { cookie })).body).toMatchObject({ settings: { language: "en" } });
 
-    // SMTP recusando: a falha chega ao painel no idioma pedido, com o detalhe ja sanitizado pelo mailer.
-    mailRejectDetail = "Invalid login: 535 AUTH [redacted]";
+    // SMTP recusando: a falha chega ao painel no idioma pedido, com o motivo e o detalhe ja sem credencial.
+    mailRejectDetail = "Invalid login: 535 AUTH PLAIN c2VuaGE= senha-do-env";
     const rejected = await request("POST", "/api/settings/notify-test", { cookie, language: "en" });
     expect(rejected.status).toBe(502);
-    expect(rejected.body).toEqual({ message: "SMTP rejected the message: Invalid login: 535 AUTH [redacted]" });
+    expect(rejected.body).toEqual({
+      reason: "auth",
+      message: "The server rejected the e-mail or the password. On Gmail, use an app password, not the account password. Detail: Invalid login: 535 AUTH [redacted]"
+    });
     const rejectedPt = await request("POST", "/api/settings/notify-test", { cookie });
-    expect(rejectedPt.body).toEqual({ message: "SMTP recusou o envio: Invalid login: 535 AUTH [redacted]" });
+    expect(rejectedPt.body).toEqual({
+      reason: "auth",
+      message: "O servidor recusou o e-mail ou a senha. No Gmail, use uma senha de app, não a senha da conta. Detalhe: Invalid login: 535 AUTH [redacted]"
+    });
+    expect((await request("GET", "/api/settings", { cookie, language: "en" })).body.mail.status).toMatchObject({
+      state: "failed",
+      reason: "auth",
+      message: "The server rejected the e-mail or the password. On Gmail, use an app password, not the account password."
+    });
   });
 });
 

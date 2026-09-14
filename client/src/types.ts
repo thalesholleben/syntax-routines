@@ -74,9 +74,23 @@ export interface AgentsMeta {
   commandMaxChars: number;
 }
 
+export type MailFailure = "notConfigured" | "auth" | "connection" | "notFound" | "tls" | "rejected" | "secret" | "other";
+
+/** Conta que envia os avisos, como o servidor mostra: sem senha, nem cifrada. */
 export interface MailMeta {
   isConfigured: boolean;
-  from: string;
+  source: "panel" | "env" | null;
+  host: string;
+  port: number;
+  user: string;
+  fromEmail: string;
+  status: {
+    state: "ok" | "failed" | "untested";
+    at: number | null;
+    reason: MailFailure | null;
+    message: string | null;
+    detail: string | null;
+  };
 }
 
 export interface SettingsResponse {

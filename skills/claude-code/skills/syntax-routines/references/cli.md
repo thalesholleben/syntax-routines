@@ -19,7 +19,7 @@ Sem o build (repositório clonado, app não instalado), o equivalente é
 | --- | --- |
 | `list [--json]` | rotinas cadastradas, com agenda, próxima execução e como terminou a última |
 | `show <id> [--json]` | uma rotina inteira, com o prompt ou o comando completo |
-| `settings [--json]` | pasta mãe, e-mail de aviso, estado do agendador e os valores aceitos |
+| `settings [--json]` | pasta mãe, e-mail de aviso, estado do envio (conectado, falhou ou não testado, sem senha), estado do agendador e os valores aceitos |
 | `runs <id> [--limit N] [--json]` | histórico de execuções da rotina, da mais recente para a mais antiga |
 | `log <execução> [--tail N]` | saída de uma execução (o mesmo log que o painel mostra) |
 | `add <rotina.json>` | cria uma rotina |

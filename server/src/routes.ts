@@ -33,7 +33,7 @@ import {
 import type { Db } from "./db";
 import { checkDirectory, listDirectories } from "./directories";
 import { DEFAULT_LANGUAGE, LANGUAGES, LocalizedError, messages, type Language, type Messages, type TextKey } from "./i18n";
-import { MailError, type Mailer } from "./mailer";
+import type { MailService } from "./mailer";
 import { buildTestEmail } from "./notifier";
 import { createRoutine, deleteRoutine, getRun, listRoutines, listRuns, NotFoundError, updateRoutine, type RoutineInput } from "./routines";
 import type { Scheduler } from "./scheduler";
@@ -136,7 +136,8 @@ function settingsSchemaFor(m: Messages) {
     codexBin: binField,
     maxParallel: z.number().int().min(1).max(10),
     bootDelayMinutes: z.number().int().min(0).max(120),
-    notifyEmail: z.string().trim().pipe(z.union([z.literal(""), z.email(m.notifyEmailInvalid).max(254)])),
+    // Opcional: o destinatario hoje e gravado pelo modal de e-mail (PUT /settings/mail); quem manda aqui ainda vale.
+    notifyEmail: z.string().trim().pipe(z.union([z.literal(""), z.email(m.notifyEmailInvalid).max(254)])).optional(),
     // Opcional: o painel manda o idioma junto com o resto; quem nao manda nao muda o que esta salvo.
     language: z.enum(LANGUAGES, { error: m.languageInvalid }).optional()
   });
@@ -144,6 +145,25 @@ function settingsSchemaFor(m: Messages) {
 
 function changePasswordSchemaFor(m: Messages) {
   return z.object({ currentPassword: z.string().min(1).max(200), newPassword: passwordFieldFor(m) });
+}
+
+// Servidor SMTP: nome de host ou IP; IPv6 entre colchetes. Nada de espaco, barra ou porta grudada.
+const HOST_PATTERN = /^(?:[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*|\[[0-9A-Fa-f:.]+\])$/;
+
+/** Modal de e-mail: conta de envio (ou nula, para gravar so o destinatario) e quem recebe os avisos. */
+function mailSchemaFor(m: Messages) {
+  return z.object({
+    account: z
+      .object({
+        host: z.string().trim().max(253).regex(HOST_PATTERN, m.mailHostInvalid),
+        port: z.number({ error: m.mailPortInvalid }).int(m.mailPortInvalid).min(1, m.mailPortInvalid).max(65_535, m.mailPortInvalid),
+        fromEmail: z.string().trim().pipe(z.email(m.mailFromInvalid).max(254)),
+        // Vazia = manter a senha ja salva pelo painel.
+        password: z.string().max(500)
+      })
+      .nullable(),
+    notifyEmail: z.string().trim().pipe(z.email(m.notifyEmailInvalid).max(254))
+  });
 }
 
 const languageSchema = z.object({ language: z.enum(LANGUAGES) });
@@ -183,7 +203,7 @@ export function readLogTail(file: string): { log: string; logSize: number; isLog
   }
 }
 
-function settingsPayload(db: Db, mailer: Mailer) {
+function settingsPayload(db: Db, mailer: MailService, language: Language) {
   return {
     settings: readSettings(db),
     agents: {
@@ -194,7 +214,7 @@ function settingsPayload(db: Db, mailer: Mailer) {
       intervalOptions: INTERVAL_OPTIONS_MINUTES,
       commandMaxChars: COMMAND_MAX_CHARS
     },
-    mail: { isConfigured: mailer.isConfigured, from: mailer.from }
+    mail: mailer.describe(language)
   };
 }
 
@@ -256,7 +276,7 @@ export function createProtectedRouter({
   db: Db;
   scheduler: Scheduler;
   logsDir: string;
-  mailer: Mailer;
+  mailer: MailService;
   panelUrl: string;
   now: () => number;
 }): Router {
@@ -279,8 +299,8 @@ export function createProtectedRouter({
     res.status(204).end();
   });
 
-  router.get("/settings", (_req, res) => {
-    res.json(settingsPayload(db, mailer));
+  router.get("/settings", (req, res) => {
+    res.json(settingsPayload(db, mailer, req.language));
   });
 
   router.put("/settings", (req, res) => {
@@ -292,7 +312,7 @@ export function createProtectedRouter({
       rootDirectory = root.real;
     }
     writeSettings(db, { ...input, rootDirectory });
-    res.json(settingsPayload(db, mailer));
+    res.json(settingsPayload(db, mailer, req.language));
   });
 
   // O seletor do painel grava so o idioma: e o que as notas de execucao e o e-mail de aviso usam.
@@ -302,17 +322,31 @@ export function createProtectedRouter({
     res.json({ language });
   });
 
-  // Manda o e-mail de teste para o destinatario ja salvo: e o mesmo caminho do aviso de falha.
+  // Modal de e-mail. Com conta, a conexao e testada antes de gravar; a falha do SMTP vira 502 no handler de erro.
+  router.put("/settings/mail", async (req, res) => {
+    const m = messages(req.language);
+    const { account, notifyEmail } = parse(mailSchemaFor(m), req.body);
+    if (account && !account.password.trim() && mailer.describe().source !== "panel") {
+      throw new ValidationError("mailPasswordRequired", { fieldErrors: { password: [m.mailPasswordRequired] } });
+    }
+    await mailer.save({
+      account: account && { host: account.host, port: account.port, user: account.fromEmail, password: account.password, fromEmail: account.fromEmail },
+      notifyEmail
+    });
+    res.json(settingsPayload(db, mailer, req.language));
+  });
+
+  router.delete("/settings/mail", (req, res) => {
+    mailer.remove();
+    res.json(settingsPayload(db, mailer, req.language));
+  });
+
+  // Manda o e-mail de teste para o destinatario ja salvo: e o mesmo caminho do aviso de falha, e atualiza o selo.
   router.post("/settings/notify-test", async (req, res) => {
     const { notifyEmail, language } = readSettings(db);
     if (!notifyEmail) throw new ValidationError("notifyEmailMissing");
-    if (!mailer.isConfigured) throw new ValidationError("smtpNotConfigured");
-    try {
-      await mailer.send({ to: notifyEmail, ...buildTestEmail(panelUrl, language) });
-    } catch (error) {
-      res.status(502).json({ message: error instanceof MailError ? error.localized(req.language) : messages(req.language).mailSendFailed });
-      return;
-    }
+    if (!mailer.isConfigured) throw new ValidationError("mailNotConfigured");
+    await mailer.send({ to: notifyEmail, ...buildTestEmail(panelUrl, language) });
     res.json({ sentTo: notifyEmail });
   });
 

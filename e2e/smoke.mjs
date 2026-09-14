@@ -1,13 +1,15 @@
 // Smoke e2e: app buildado + Chrome real (playwright-core, channel "chrome") + agente falso.
 // Pre-requisito: npm run build. Screenshots em e2e/.output.
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright-core";
+
+import { startFakeSmtp } from "./fake-smtp.mjs";
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDir = path.join(projectDir, "e2e", ".output");
@@ -49,6 +51,9 @@ const root = path.join(tmp, "pasta-mae");
 mkdirSync(path.join(root, "projeto-teste"), { recursive: true });
 const port = await freePort();
 const baseUrl = `http://127.0.0.1:${port}`;
+// SMTP falso em 127.0.0.1 para o modal de e-mail (passo 5c): nenhuma mensagem sai da maquina.
+const SMTP_PASSWORD = "senha-certa-e2e";
+const smtp = await startFakeSmtp({ password: SMTP_PASSWORD });
 
 // O servidor de teste nao pode mandar e-mail de verdade: nada de .env do projeto (ENV_FILE vazio) e nada de SMTP_*
 // herdado do processo pai (loadEnvFile nao apaga variavel existente). A SMTP_PASS falsa plantada aqui prova a limpeza:
@@ -79,6 +84,8 @@ try {
     if (message.type() !== "error") return;
     // O 400 do e-mail de teste sem SMTP e esperado (passo 5c); o Chrome registra toda resposta 4xx como erro de console.
     if ((message.location()?.url ?? "").endsWith("/api/settings/notify-test")) return;
+    // A senha errada no modal de e-mail responde 502 de proposito (passo 5c).
+    if ((message.location()?.url ?? "").endsWith("/api/settings/mail")) return;
     // A sonda de idioma pede um 400 de proposito (passo 2); o Chrome registra todo 4xx como erro de console.
     if ((message.location()?.url ?? "").includes("probe=language")) return;
     consoleErrors.push(message.text());
@@ -204,13 +211,51 @@ try {
   check(true, "comando com código de saída 3 vira Falhou");
   await page.screenshot({ path: path.join(outputDir, "rotinas-1280.png") });
 
-  // 5c. e-mail de aviso: salva o destinatario e o teste responde "nao configurado" (sem SMTP no servidor de teste)
+  // 5c. e-mail pelo modal: sem conta nenhuma no comeco (a SMTP_PASS do processo pai nao vazou); senha errada mostra o
+  // motivo e deixa o modal aberto; senha certa conecta; o teste chega ao SMTP falso; a senha nao aparece na API, no
+  // banco nem no log.
   await page.getByRole("button", { name: "Ajustes", exact: true }).click();
-  await page.getByLabel("E-mail de aviso").fill("dono@example.com");
-  await page.getByRole("button", { name: "Enviar e-mail de teste" }).click();
-  await page.getByRole("alert").filter({ hasText: "SMTP não configurado" }).waitFor();
+  await page.getByText("Não configurado", { exact: true }).waitFor();
+  const mailBefore = await page.evaluate(() => fetch("/api/settings").then((response) => response.json()).then((data) => data.mail));
   const notifyStatus = await page.evaluate(() => fetch("/api/settings/notify-test", { method: "POST" }).then((response) => response.status));
-  check(notifyStatus === 400, "e-mail de teste sem SMTP responde 400 (a SMTP_PASS do processo pai não vazou)");
+  check(mailBefore.isConfigured === false && mailBefore.source === null && notifyStatus === 400, "sem conta de e-mail no servidor de teste (a SMTP_PASS do processo pai não vazou)");
+  await page.getByRole("button", { name: "Configurar e-mail" }).click();
+  const mailDialog = page.getByRole("dialog", { name: "Configurar e-mail" });
+  await mailDialog.waitFor();
+  await mailDialog.getByLabel("Provedor").selectOption("other");
+  await mailDialog.getByLabel("Servidor SMTP").fill("127.0.0.1");
+  await mailDialog.getByLabel("Porta").fill(String(smtp.port));
+  await mailDialog.getByLabel("E-mail que envia").fill("avisos@example.com");
+  check((await mailDialog.getByLabel("E-mail que recebe os avisos").inputValue()) === "avisos@example.com", "o destinatário acompanha o e-mail que envia");
+  await mailDialog.getByLabel("E-mail que recebe os avisos").fill("dono@example.com");
+  await mailDialog.getByLabel("Senha", { exact: true }).fill("senha-errada");
+  await mailDialog.getByRole("button", { name: "Salvar e testar" }).click();
+  await mailDialog.getByRole("alert").filter({ hasText: "recusou o e-mail ou a senha" }).waitFor({ timeout: 30_000 });
+  check(await mailDialog.isVisible(), "senha errada mostra o motivo e o modal continua aberto");
+  await mailDialog.getByLabel("Senha", { exact: true }).fill(SMTP_PASSWORD);
+  await mailDialog.getByRole("button", { name: "Salvar e testar" }).click();
+  await mailDialog.waitFor({ state: "detached", timeout: 30_000 });
+  await page.getByText("Conectado", { exact: true }).waitFor();
+  check(true, "senha certa conecta, fecha o modal e o selo mostra Conectado");
+  await page.getByRole("button", { name: "Enviar e-mail de teste" }).click();
+  await page.getByText("E-mail de teste enviado para dono@example.com.").waitFor({ timeout: 30_000 });
+  const delivered = smtp.messages.at(-1);
+  check(
+    Boolean(delivered?.to.includes("<dono@example.com>") && delivered.data.includes("[Syntax Routines] E-mail de teste")),
+    "o e-mail de teste chegou ao SMTP falso"
+  );
+  const settingsJson = await page.evaluate(() => fetch("/api/settings").then((response) => response.text()));
+  const dataFiles = ["app.db", "app.db-wal", "app.log"].map((name) => path.join(tmp, "data", name)).filter((file) => existsSync(file));
+  const leaked = dataFiles.filter((file) => {
+    const bytes = readFileSync(file);
+    return bytes.includes(Buffer.from(SMTP_PASSWORD, "utf8")) || bytes.includes(Buffer.from(SMTP_PASSWORD, "utf16le"));
+  });
+  check(!settingsJson.includes(SMTP_PASSWORD) && leaked.length === 0, `senha do e-mail fora da API, do banco e do log${leaked.length ? `: achada em ${leaked.join(", ")}` : ""}`);
+  await page.reload();
+  await page.getByRole("button", { name: "Ajustes", exact: true }).click();
+  await page.getByText("Conectado", { exact: true }).waitFor();
+  check(true, "o selo Conectado continua depois de recarregar a página");
+  await page.screenshot({ path: path.join(outputDir, "ajustes-1280.png") });
   await page.getByRole("button", { name: "Rotinas", exact: true }).click();
   await scriptCard.waitFor();
 
@@ -229,6 +274,7 @@ try {
 } finally {
   await browser?.close();
   server.kill();
+  await smtp.close();
   await new Promise((resolve) => setTimeout(resolve, 500));
   rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }

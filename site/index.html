@@ -330,7 +330,7 @@ acompanhe com: runs 3   |   saída: log 188</pre>
           <source type="image/webp" srcset="img/ajustes-640.webp 640w, img/ajustes-960.webp 960w, img/ajustes-1280.webp 1280w" sizes="(min-width: 768px) 50vw, 100vw">
           <img src="img/ajustes.png" width="1280" height="900" loading="lazy" decoding="async" alt="Ajustes: pasta mãe, binários, execuções em paralelo, e-mail de aviso e estado do agendador">
         </picture>
-        <figcaption><b>Ajustes</b>Pasta mãe, binários do claude e do codex, paralelismo, e-mail de aviso e o estado do agendador.</figcaption>
+        <figcaption><b>Ajustes</b>Pasta mãe, binários do claude e do codex, paralelismo, conta de e-mail com selo de conexão e o estado do agendador.</figcaption>
       </figure>
     </div>
   </div>
@@ -349,7 +349,6 @@ acompanhe com: runs 3   |   saída: log 188</pre>
         <pre id="install-cmd"><em># na pasta onde você guarda projetos</em>
 git clone https://github.com/thalesholleben/syntax-routines.git
 cd syntax-routines
-Copy-Item .env.example .env      <em># e preencha o SMTP, se quiser aviso por e-mail</em>
 .\service\install.ps1 <b>-Build</b></pre>
         <div class="lp-install__row">
           <a class="lp-btn is-primary" href="https://github.com/thalesholleben/syntax-routines/releases/latest">Baixar a última versão</a>
@@ -360,7 +359,7 @@ Copy-Item .env.example .env      <em># e preencha o SMTP, se quiser aviso por e-
     </div>
     <div class="lp-install__notes fx-reveal">
       <div><b>O que o script faz</b><p>Instala as dependências, gera o build, registra a tarefa agendada <code>SyntaxRoutines</code> no logon do seu usuário (sem janela, reinicia se cair) e cria o atalho na área de trabalho, que abre o painel em modo app no Chrome ou no Edge.</p></div>
-      <div><b>Primeiro acesso</b><p>Você cria a senha do painel. Depois, em Ajustes, define a pasta mãe onde as rotinas podem rodar e o e-mail que recebe os avisos. Botão de e-mail de teste incluso.</p></div>
+      <div><b>Primeiro acesso</b><p>Você cria a senha do painel. Depois, em Ajustes, define a pasta mãe onde as rotinas podem rodar e clica em Configurar e-mail: Gmail com senha de app ou outro servidor SMTP, testado na hora de salvar.</p></div>
       <div><b>Para remover</b><p><code>.\service\uninstall.ps1</code>. Os dados em <code>data/</code> ficam. Sem instalar a tarefa: <code>npm install</code>, <code>npm run build</code> e <code>start.cmd</code>.</p></div>
     </div>
   </div>
@@ -388,7 +387,7 @@ Copy-Item .env.example .env      <em># e preencha o SMTP, se quiser aviso por e-
       </details>
       <details>
         <summary>Como funciona o aviso por e-mail?</summary>
-        <p>O SMTP fica no <code>.env</code> (padrões do Gmail e Google Workspace na porta 587 com STARTTLS; com verificação em duas etapas, use uma senha de app). O destinatário fica em Ajustes. Toda execução que termina em falha gera um e-mail com a rotina, o erro e o link do painel. Sucesso não avisa. Sem <code>.env</code>, o app sobe sem e-mail e Ajustes avisa.</p>
+        <p>Em Ajustes, o botão Configurar e-mail abre um modal: escolha Gmail (com uma senha de app, que exige a verificação em duas etapas) ou outro servidor SMTP, o e-mail que envia e quem recebe. Ao salvar, o app testa a conexão e mostra Conectado ou o motivo da falha, e a senha fica cifrada com a chave do seu usuário do Windows. Toda execução que termina em falha gera um e-mail com a rotina, o erro e o link do painel; sucesso não avisa. Quem prefere ainda pode usar o <code>.env</code>.</p>
       </details>
       <details>
         <summary>Isso é seguro? O agente roda com acesso total.</summary>

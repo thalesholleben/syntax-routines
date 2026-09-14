@@ -7,4 +7,5 @@ Read `AGENTS.md` (rules and invariants) and `README.md` (how it runs) before sug
 - A new route goes into `createProtectedRouter` (`server/src/routes.ts`), never the public router. Routine validation only in `routineSchema` + `normalizeRoutine`.
 - Directories always through `checkDirectory`; run claims only through the `UPDATE` in `claimRun`; schema migration only in `db.ts`, with `PRAGMA foreign_keys = OFF` before `BEGIN`.
 - Database in snake_case with `AS "field"` aliases; JSON and TypeScript in camelCase; booleans with `is`/`has`.
-- Interface text in Brazilian Portuguese, without em dashes as punctuation.
+- Interface text in both dictionaries (`client/src/i18n.tsx`, `server/src/i18n.ts`), Portuguese and English, without em dashes as punctuation.
+- The SMTP password never leaves the server: see invariant 14 in `AGENTS.md`.

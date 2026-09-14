@@ -9,7 +9,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { openDb } from "../server/src/db";
 import { getRoutine, toRoutineFields } from "../server/src/routines";
 import { routineSchema } from "../server/src/routes";
-import { writeSettings } from "../server/src/settings";
+import { setSetting, writeSettings } from "../server/src/settings";
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const tsxCli = path.join(projectDir, "node_modules", "tsx", "dist", "cli.mjs");
@@ -33,11 +33,20 @@ afterEach(() => {
   rmSync(tmp, { recursive: true, force: true });
 });
 
+// O .env do projeto (se existir nesta maquina) fica de fora: o CLI descreveria a conta de envio de quem roda o teste.
+function cliEnv(): NodeJS.ProcessEnv {
+  const emptyEnv = path.join(tmp, "vazio.env");
+  writeFileSync(emptyEnv, "");
+  const inherited = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^(SMTP_|MAIL_FROM_)/.test(key)));
+  return { ...inherited, ENV_FILE: emptyEnv };
+}
+
 function cli(...args: string[]) {
   const result = spawnSync(process.execPath, ["--disable-warning=ExperimentalWarning", tsxCli, script, ...args, "--data", dataDir], {
     cwd: projectDir,
     encoding: "utf8",
-    timeout: 60_000
+    timeout: 60_000,
+    env: cliEnv()
   });
   return { code: result.status, out: `${result.stdout}\n${result.stderr}`, stdout: result.stdout };
 }
@@ -234,5 +243,34 @@ describe("routines-cli", { timeout: 30_000 }, () => {
     expect(missing.status).toBe(1);
     expect(missing.stderr).toContain("banco não encontrado");
     expect(cli("settings").out).toContain("pasta mãe");
+  });
+
+  it("settings mostra o estado do envio de e-mail sem nenhum segredo", () => {
+    const empty = cli("settings");
+    expect(empty.code, empty.out).toBe(0);
+    expect(empty.out).toContain("envio do aviso: não configurado");
+
+    const db = openDb(path.join(dataDir, "app.db"));
+    const panel = {
+      smtp_host: "smtp.gmail.com",
+      smtp_port: "587",
+      smtp_user: "painel@example.com",
+      mail_from_email: "painel@example.com",
+      smtp_pass_dpapi: "c1f7ad0b10b"
+    };
+    for (const [key, value] of Object.entries(panel)) setSetting(db, key, value);
+    const statusKey = "panel|smtp.gmail.com|587|false|painel@example.com|painel@example.com";
+    setSetting(db, "mail_status", JSON.stringify({ key: statusKey, state: "failed", at: Date.now(), reason: "auth", detail: "535 5.7.8" }));
+    writeSettings(db, { notifyEmail: "dono@example.com" });
+    db.close();
+
+    const text = cli("settings");
+    expect(text.code, text.out).toBe(0);
+    expect(text.out).toContain("envio do aviso: falhou (painel: painel@example.com via smtp.gmail.com:587;");
+    expect(text.out).toContain("O servidor recusou o e-mail ou a senha.");
+    const json = cli("settings", "--json");
+    expect(json.code, json.out).toBe(0);
+    expect(JSON.parse(json.stdout).mail).toMatchObject({ isConfigured: true, source: "panel", fromEmail: "painel@example.com", status: { state: "failed", reason: "auth" } });
+    for (const out of [text.out, json.out]) expect(out).not.toContain("c1f7ad0b10b");
   });
 });

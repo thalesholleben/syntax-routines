@@ -82,7 +82,6 @@ function createFakeMailer(isConfigured = true) {
   const state = { failNext: 0 };
   const mailer: Mailer = {
     isConfigured,
-    from: "avisos@example.com",
     async send(message) {
       if (state.failNext > 0) {
         state.failNext -= 1;

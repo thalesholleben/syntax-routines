@@ -20,6 +20,7 @@ import {
   TIMEOUT_OPTIONS_MINUTES
 } from "../server/src/agents";
 import { openDb, type Db } from "../server/src/db";
+import { describeMail, type MailView } from "../server/src/mailer";
 import {
   ConflictError,
   createRoutine,
@@ -422,9 +423,10 @@ const COMMANDS: Record<string, Command> = {
 
   settings: {
     usage: "settings [--json]",
-    summary: "pasta mãe, e-mail de aviso e os valores que uma rotina aceita",
+    summary: "pasta mãe, e-mail de aviso, estado do envio e os valores que uma rotina aceita",
     run(ctx) {
       const settings = readSettings(ctx.db);
+      const mail = describeMail(ctx.db, loadMailEnv());
       const stored = getMeta(ctx.db, "last_tick_at");
       const lastTickAt = stored === null ? null : Number(stored);
       if (ctx.options.json) {
@@ -432,6 +434,7 @@ const COMMANDS: Record<string, Command> = {
           JSON.stringify(
             {
               settings,
+              mail,
               lastTickAt,
               accepted: {
                 agentKind: EXECUTOR_KINDS,
@@ -451,6 +454,7 @@ const COMMANDS: Record<string, Command> = {
       }
       console.log(`pasta mãe: ${settings.rootDirectory || "não configurada (configure em Ajustes)"}`);
       console.log(`e-mail de aviso: ${settings.notifyEmail || "nenhum (falha não avisa ninguém)"}`);
+      console.log(`envio do aviso: ${mailLine(mail)}`);
       console.log(`idioma do painel, das notas e do e-mail: ${settings.language}`);
       console.log(`em paralelo: ${settings.maxParallel} | atraso ao ligar: ${settings.bootDelayMinutes} min`);
       console.log(`agendador: ${lastTickAt === null ? "ainda não rodou" : `último tick ${when(lastTickAt)}`}`);
@@ -464,6 +468,31 @@ const COMMANDS: Record<string, Command> = {
     }
   }
 };
+
+/**
+ * Ambiente com o .env do app, so para DESCREVER a conta que envia (fonte, servidor, remetente): o CLI nunca envia e
+ * nunca imprime senha. Mesma precedencia do servidor: ENV_FILE, senao o .env da raiz do projeto.
+ */
+function loadMailEnv(): NodeJS.ProcessEnv {
+  const file = process.env.ENV_FILE ? path.resolve(process.env.ENV_FILE) : path.join(projectDir, ".env");
+  try {
+    process.loadEnvFile(file);
+  } catch {
+    // sem .env: a conta, se existir, e a salva pelo painel
+  }
+  return process.env;
+}
+
+function mailLine(mail: MailView): string {
+  if (!mail.isConfigured) return "não configurado (o usuário configura em Ajustes > Configurar e-mail)";
+  const account = `${mail.source === "panel" ? "painel" : ".env"}: ${mail.fromEmail} via ${mail.host}:${mail.port}`;
+  if (mail.status.state === "ok") return `conectado (${account}; último envio ou teste ${when(mail.status.at)})`;
+  if (mail.status.state === "failed") {
+    const detail = mail.status.detail ? ` Detalhe: ${mail.status.detail}` : "";
+    return `falhou (${account}; ${when(mail.status.at)}) ${mail.status.message ?? ""}${detail}`.trimEnd();
+  }
+  return `não testado (${account})`;
+}
 
 // ---------------------------------------------------------------- entrada
 

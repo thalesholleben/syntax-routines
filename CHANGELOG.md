@@ -7,6 +7,11 @@ commit on `main`.
 
 ### Added
 
+- **E-mail setup from Settings.** A dialog for Gmail (app password) or any SMTP server, the sending
+  address and the recipient; saving tests the connection before writing anything. A badge shows
+  Connected, Failed with the reason (wrong password, server not found, TLS, connection) or Not
+  tested, and real alerts update it. The password is encrypted with Windows DPAPI and never comes
+  back through the API or the CLI. `.env` keeps working, and the panel account takes precedence.
 - **Panel in English and Portuguese**, with a discreet selector on the sign-in screen, at the bottom
   of the sidebar and in Settings. The choice is kept in the browser and in Settings; the API answers
   in the panel's language (`Accept-Language`), and run notes and alert e-mails follow Settings.

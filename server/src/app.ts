@@ -7,7 +7,7 @@ import { hostGuard, originGuard, requireAuth } from "./auth";
 import type { Db } from "./db";
 import { languageFromHeader, messages } from "./i18n";
 import { log } from "./log";
-import type { Mailer } from "./mailer";
+import { MailError, type MailService } from "./mailer";
 import { ConflictError, NotFoundError } from "./routines";
 import { createProtectedRouter, createPublicRouter, ValidationError } from "./routes";
 import type { Scheduler } from "./scheduler";
@@ -16,7 +16,7 @@ export interface AppDeps {
   db: Db;
   scheduler: Scheduler;
   logsDir: string;
-  mailer: Mailer;
+  mailer: MailService;
   panelUrl: string;
   clientDir?: string;
   isDev?: boolean;
@@ -47,6 +47,11 @@ const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
   }
   if (error instanceof ConflictError) {
     res.status(409).json({ message: error.localized(req.language) });
+    return;
+  }
+  // Falha do servidor SMTP (teste ou conta nova): 502, com o motivo para a tela dizer o que conferir.
+  if (error instanceof MailError) {
+    res.status(502).json({ message: error.localized(req.language), reason: error.reason });
     return;
   }
   // Erros do body parser (JSON quebrado, corpo grande) trazem status 4xx proprio.
