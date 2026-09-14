@@ -43,13 +43,14 @@ Só quando o usuário pedir. Em um PowerShell comum (não precisa de administrad
 do projeto:
 
 ```powershell
-Copy-Item .env.example .env      # e preencha o SMTP, se quiser aviso por e-mail
 .\service\install.ps1 -Build
 ```
 
 O script instala dependências, gera o build, registra a tarefa que sobe no logon e cria o
 atalho na área de trabalho. Depois disso, o usuário cria a senha do painel e configura a
-pasta mãe e o e-mail de aviso em Ajustes. Nada disso é seu para fazer por ele.
+pasta mãe e o e-mail em Ajustes (botão Configurar e-mail: Gmail com senha de app ou outro
+SMTP). Nada disso é seu para fazer por ele, e a senha do e-mail você nunca pede, nunca digita e
+nunca grava, nem no `.env`.
 
 Requisitos: Windows 10 ou 11, Node.js 24.13 ou mais novo, e `codex` e `claude` instalados e
 autenticados no usuário dele para as rotinas de agente. Uma rotina `CODEX` usa o mesmo CLI e a
@@ -61,7 +62,9 @@ mesma conta que você usa aqui: o limite de uso é compartilhado com o trabalho 
   ninguém logado, sim.
 - Rotina de agente roda com acesso total dentro da pasta mãe, sem pedir permissão. É o mesmo
   poder que você tem aqui, sem ninguém olhando: por isso a confirmação antes de criar.
-- O aviso de falha depende do SMTP no `.env` e do endereço em Ajustes. Sem os dois, falha
-  não avisa ninguém.
+- O aviso de falha depende de uma conta que envia (Ajustes > Configurar e-mail, ou o `.env`) e
+  do destinatário. `settings` mostra o estado do envio: conectado, falhou (com o motivo), não
+  testado ou não configurado. Nos dois últimos casos, falha de rotina pode não avisar ninguém:
+  diga isso a ele.
 
 Fonte: `README.md` e `AGENTS.md` do projeto, que valem mais que este texto se divergirem.

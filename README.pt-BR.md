@@ -51,7 +51,9 @@ suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
   ligado, cai para o outro agente; desligado, espera o horário de reset.
 - **Aviso por e-mail.** Toda execução que termina em falha (código de saída, timeout, limite
   esgotado, diretório fora da pasta mãe, app encerrado no meio) gera um e-mail com a rotina, o
-  erro e o link do painel. Sucesso não avisa.
+  erro e o link do painel. Sucesso não avisa. A conta que envia é configurada num modal em Ajustes
+  (Gmail com senha de app, ou qualquer servidor SMTP), testada ao salvar, com um selo que diz
+  Conectado ou por que falhou.
 - **Histórico e log** de cada execução no painel e pelo CLI, com retenção de 30 dias.
 - **Português ou inglês.** Um seletor discreto na tela de login e no pé da barra lateral troca o
   painel inteiro; a escolha vale também para as notas das execuções e para o e-mail de aviso.
@@ -94,22 +96,26 @@ Em um PowerShell comum, na pasta do projeto (não precisa de administrador):
 ```powershell
 git clone https://github.com/thalesholleben/syntax-routines.git
 cd syntax-routines
-Copy-Item .env.example .env      # e preencha o SMTP, se quiser aviso por e-mail
 .\service\install.ps1 -Build
 ```
 
 O script instala as dependências, gera o build, registra a tarefa agendada `SyntaxRoutines`
 (sobe no logon do seu usuário, sem janela, reinicia se cair) e cria o atalho `Syntax Routines`
 na área de trabalho. No primeiro acesso você cria a senha do painel; depois, em Ajustes, define
-a pasta mãe e o e-mail de aviso.
+a pasta mãe e clica em **Configurar e-mail**.
 
 - **Abre como app, não como aba.** O atalho chama o Chrome (ou o Edge) em `--app=`, então a
   janela vem sem barra de endereço e com o ícone do Syntax Routines na barra de tarefas.
-- **E-mail.** O `.env` leva `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
-  `MAIL_FROM_EMAIL` e `MAIL_FROM_NAME` (padrões do Gmail e Google Workspace na 587 com STARTTLS;
-  no Google, com verificação em duas etapas, use uma senha de app). Sem o arquivo o app sobe sem
-  e-mail e Ajustes avisa. O botão "Enviar e-mail de teste" usa o mesmo caminho do aviso de falha.
-  Mudou o `.env`: rode `install.ps1` de novo, sem `-Build`.
+- **E-mail.** Em Ajustes, **Configurar e-mail** abre um modal: Gmail (com senha de app, que exige
+  a verificação em duas etapas) ou outro servidor SMTP, o e-mail que envia e quem recebe os avisos.
+  Ao salvar, o app testa a conexão antes; o selo mostra Conectado, Falhou com o motivo ou Não
+  testado, e os avisos de verdade também o atualizam. A senha fica cifrada com a DPAPI do Windows
+  para o seu usuário e nunca volta pela API nem pelo CLI. O botão "Enviar e-mail de teste" usa o
+  mesmo caminho do aviso de falha.
+- **E-mail pelo `.env` (opcional).** `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
+  `SMTP_PASS`, `MAIL_FROM_EMAIL` e `MAIL_FROM_NAME` continuam valendo (copie o `.env.example` para
+  `.env`); a conta salva no painel tem prioridade. Mudou o `.env`: rode `install.ps1` de novo, sem
+  `-Build`.
 - O app só roda com o seu usuário logado: se o PC ligar e ninguém entrar, as rotinas esperam o
   logon. Tela bloqueada não interrompe nada.
 - Remover: `.\service\uninstall.ps1`. Os dados em `data/` ficam.
@@ -184,7 +190,7 @@ que parte desse trabalho aconteça sem ninguém olhando.
 | Painel | React 19, Vite, Tailwind 4 | Login, rotinas, histórico, ajustes |
 | API e agendador | Express 5, `node:sqlite` | Sessão, validação (zod), tick de 30 s, fila, retry, retenção |
 | Executores | `claude`, `codex`, `cmd.exe` | Prompt por stdin com bypass de permissões, ou linha de comando |
-| E-mail | nodemailer | Aviso de falha pelo SMTP do `.env` |
+| E-mail | nodemailer, DPAPI do Windows | Aviso de falha pela conta SMTP salva em Ajustes (ou do `.env`) |
 | Instalação | PowerShell, Agendador do Windows | Tarefa no logon, sem elevação, atalho em modo app |
 | Agente | CLI (`dist/routines.mjs`) + skill | Leitura e escrita pelo mesmo caminho das rotas, sem senha |
 
@@ -198,9 +204,9 @@ e despacha com um claim atômico (uma execução por rotina, teto global de para
 | --- | --- |
 | `npm run dev` | API com reload (`--dev`) + painel Vite em http://127.0.0.1:5190 |
 | `npm run typecheck` | TypeScript do servidor, do cliente e de `scripts/` |
-| `npm test` | vitest: agenda, agendador com SQLite real, migração, runner com `.cmd` falsos e scripts reais, e-mail com transporte falso, HTTP, subida, importação e CLI |
+| `npm test` | vitest: agenda, agendador com SQLite real, migração, runner com `.cmd` falsos e scripts reais, e-mail com transporte falso e DPAPI de verdade, HTTP, subida, importação e CLI |
 | `npm run build` | typecheck + `dist/client` + `dist/server/index.mjs` + `dist/routines.mjs` |
-| `npm run e2e` | smoke no Chrome instalado com agente falso e script real (precisa do build; capturas em `e2e/.output`) |
+| `npm run e2e` | smoke no Chrome instalado com agente falso, script real e um SMTP falso local (precisa do build; capturas em `e2e/.output`) |
 | `npm run test:ps1` | `service/listener.test.ps1` (processos reais numa porta livre, sem admin) e `scripts/check-backup.test.ps1` |
 | `npm run skills:check` | confere os pacotes de skill contra o CLI de verdade (comando documentado que não existe reprova) |
 | `npm run routines -- <cmd>` | o CLI em desenvolvimento, sem precisar do build |
@@ -208,8 +214,8 @@ e despacha com um claim atômico (uma execução por rotina, teto global de para
 | `node scripts/make-icons.mjs` | regera os ícones do app a partir de `public/brand/syntax-x.svg` |
 
 Testes e e2e usam só pastas temporárias, não tocam em `data/`, não chamam Claude ou Codex de
-verdade e não mandam e-mail (o e2e limpa `SMTP_*` do ambiente e aponta `ENV_FILE` para um
-arquivo vazio). O CI roda tudo isso em `windows-latest` e passa o gitleaks no histórico.
+verdade e não mandam e-mail (o e2e limpa `SMTP_*` do ambiente, aponta `ENV_FILE` para um
+arquivo vazio e configura o e-mail contra um SMTP falso em 127.0.0.1). O CI roda tudo isso em `windows-latest` e passa o gitleaks no histórico.
 
 ## Modelo de segurança
 
@@ -221,7 +227,9 @@ arquivo vazio). O CI roda tudo isso em `windows-latest` e passa o gitleaks no hi
   uma superfície de execução: trate a senha como a senha do próprio Windows.
 - Diretório sempre por caminho real: junction ou symlink para fora da pasta mãe é recusado, e
   pastas do sistema são bloqueadas.
-- Segredo (SMTP) mora no `.env`, fora do git; o destinatário dos avisos fica no banco.
+- O único segredo é a senha do SMTP. Salva em Ajustes, ela é cifrada com a DPAPI do Windows
+  (usuário atual) antes de chegar ao banco e nunca sai do servidor; no `.env`, fica fora do git. O
+  destinatário dos avisos fica no banco.
 
 Relato de vulnerabilidade: [SECURITY.md](SECURITY.md). Não abra issue pública para isso.
 

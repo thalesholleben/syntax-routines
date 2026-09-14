@@ -330,7 +330,7 @@ acompanhe com: runs 3   |   saída: log 188</pre>
           <source type="image/webp" srcset="../img/ajustes-640.webp 640w, ../img/ajustes-960.webp 960w, ../img/ajustes-1280.webp 1280w" sizes="(min-width: 768px) 50vw, 100vw">
           <img src="../img/ajustes.png" width="1280" height="900" loading="lazy" decoding="async" alt="Settings: root folder, binaries, parallel runs, alert e-mail and scheduler state">
         </picture>
-        <figcaption><b>Settings</b>Root folder, claude and codex binaries, parallelism, alert e-mail and the scheduler state.</figcaption>
+        <figcaption><b>Settings</b>Root folder, claude and codex binaries, parallelism, e-mail account with a connection badge and the scheduler state.</figcaption>
       </figure>
     </div>
   </div>
@@ -349,7 +349,6 @@ acompanhe com: runs 3   |   saída: log 188</pre>
         <pre id="install-cmd"><em># in the folder where you keep projects</em>
 git clone https://github.com/thalesholleben/syntax-routines.git
 cd syntax-routines
-Copy-Item .env.example .env      <em># and fill in SMTP if you want e-mail alerts</em>
 .\service\install.ps1 <b>-Build</b></pre>
         <div class="lp-install__row">
           <a class="lp-btn is-primary" href="https://github.com/thalesholleben/syntax-routines/releases/latest">Download the latest release</a>
@@ -360,7 +359,7 @@ Copy-Item .env.example .env      <em># and fill in SMTP if you want e-mail alert
     </div>
     <div class="lp-install__notes fx-reveal">
       <div><b>What the script does</b><p>Installs dependencies, builds, registers the <code>SyntaxRoutines</code> scheduled task at your user's logon (no window, restarts if it dies) and creates the desktop shortcut, which opens the panel in app mode on Chrome or Edge.</p></div>
-      <div><b>First access</b><p>You create the panel password. Then, in Settings, you set the root folder where routines may run and the e-mail that receives alerts. Test e-mail button included.</p></div>
+      <div><b>First access</b><p>You create the panel password. Then, in Settings, you set the root folder where routines may run and click Configure e-mail: Gmail with an app password or another SMTP server, tested when you save.</p></div>
       <div><b>To remove</b><p><code>.\service\uninstall.ps1</code>. The data in <code>data/</code> stays. Without installing the task: <code>npm install</code>, <code>npm run build</code> and <code>start.cmd</code>.</p></div>
     </div>
   </div>
@@ -388,7 +387,7 @@ Copy-Item .env.example .env      <em># and fill in SMTP if you want e-mail alert
       </details>
       <details>
         <summary>How does the e-mail alert work?</summary>
-        <p>SMTP lives in <code>.env</code> (Gmail and Google Workspace defaults on port 587 with STARTTLS; with two-step verification, use an app password). The recipient is set in Settings. Every run that ends in failure produces an e-mail with the routine, the error and the panel link. Success stays quiet. Without <code>.env</code>, the app starts without e-mail and Settings says so.</p>
+        <p>In Settings, the Configure e-mail button opens a dialog: choose Gmail (with an app password, which needs two-step verification) or another SMTP server, the sending address and who receives the alerts. Saving tests the connection and shows Connected or the reason it failed, and the password is encrypted with your Windows user's key. Every run that ends in failure produces an e-mail with the routine, the error and the panel link; success stays quiet. If you prefer, <code>.env</code> still works.</p>
       </details>
       <details>
         <summary>Is this safe? The agent runs with full access.</summary>

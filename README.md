@@ -55,7 +55,9 @@ no support channel with a deadline; see [SUPPORT.md](SUPPORT.md).
   back to the other agent; off, it waits for the reset time.
 - **E-mail on failure.** Every run that ends in failure (exit code, timeout, exhausted limit,
   directory outside the root folder, app closed mid-run) produces an e-mail with the routine,
-  the error and the panel link. Success stays quiet.
+  the error and the panel link. Success stays quiet. The sending account is set up in a Settings
+  dialog (Gmail with an app password, or any SMTP server), tested on save, with a badge that says
+  Connected or why it failed.
 - **History and log** for every run, in the panel and through the CLI, kept for 30 days.
 - **English or Portuguese.** A discreet selector on the sign-in screen and at the bottom of the
   sidebar switches the whole panel; the choice also applies to run notes and alert e-mails.
@@ -98,22 +100,26 @@ In a regular PowerShell, inside the project folder (no administrator needed):
 ```powershell
 git clone https://github.com/thalesholleben/syntax-routines.git
 cd syntax-routines
-Copy-Item .env.example .env      # fill in the SMTP settings if you want e-mail alerts
 .\service\install.ps1 -Build
 ```
 
 The script installs dependencies, builds, registers the `SyntaxRoutines` scheduled task (starts
 at your logon, no window, restarts if it dies) and creates the `Syntax Routines` shortcut on the
 desktop. On first access you create the panel password; then, in Settings, set the root folder
-and the notification e-mail.
+and click **Configure e-mail**.
 
 - **Opens as an app, not a tab.** The shortcut launches Chrome (or Edge) with `--app=`, so the
   window has no address bar and shows the Syntax Routines icon in the taskbar.
-- **E-mail.** `.env` takes `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`, `SMTP_PASS`,
-  `MAIL_FROM_EMAIL` and `MAIL_FROM_NAME` (Gmail and Google Workspace defaults on 587 with
-  STARTTLS; on Google with two-step verification, use an app password). Without the file the app
-  starts without e-mail and Settings says so. "Send test e-mail" uses the same path as the
-  failure alert. Changed `.env`: run `install.ps1` again, without `-Build`.
+- **E-mail.** In Settings, **Configure e-mail** opens a dialog: Gmail (with an app password, which
+  needs two-step verification) or another SMTP server, the sending address and who receives the
+  alerts. Saving tests the connection first; the badge then shows Connected, Failed with the reason,
+  or Not tested, and real alerts update it too. The password is encrypted with Windows DPAPI for
+  your user and never comes back through the API or the CLI. "Send test e-mail" uses the same path
+  as the failure alert.
+- **E-mail through `.env` (optional).** `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
+  `SMTP_PASS`, `MAIL_FROM_EMAIL` and `MAIL_FROM_NAME` still work (copy `.env.example` to `.env`);
+  an account saved in the panel takes precedence. Changed `.env`: run `install.ps1` again, without
+  `-Build`.
 - The app only runs while your user is logged in: if the PC boots and nobody signs in, routines
   wait for the logon. A locked screen does not interrupt anything.
 - Remove: `.\service\uninstall.ps1`. Data in `data/` stays.
@@ -188,7 +194,7 @@ wants part of that work to happen with nobody watching.
 | Panel | React 19, Vite, Tailwind 4 | Login, routines, history, settings |
 | API and scheduler | Express 5, `node:sqlite` | Session, validation (zod), 30 s tick, queue, retry, retention |
 | Executors | `claude`, `codex`, `cmd.exe` | Prompt over stdin with permission bypass, or a command line |
-| E-mail | nodemailer | Failure alert through the SMTP in `.env` |
+| E-mail | nodemailer, Windows DPAPI | Failure alert through the SMTP account saved in Settings (or `.env`) |
 | Installation | PowerShell, Windows Task Scheduler | Logon task without elevation, app-mode shortcut |
 | Agent | CLI (`dist/routines.mjs`) + skill | Reads and writes through the same path as the routes, no password |
 
@@ -202,9 +208,9 @@ dispatches with an atomic claim (one run per routine, a global parallelism cap).
 | --- | --- |
 | `npm run dev` | API with reload (`--dev`) + Vite panel at http://127.0.0.1:5190 |
 | `npm run typecheck` | TypeScript for the server, the client and `scripts/` |
-| `npm test` | vitest: schedule, scheduler with real SQLite, migration, runner with fake `.cmd` and real scripts, e-mail with a fake transport, HTTP, boot, import and CLI |
+| `npm test` | vitest: schedule, scheduler with real SQLite, migration, runner with fake `.cmd` and real scripts, e-mail with a fake transport and real DPAPI, HTTP, boot, import and CLI |
 | `npm run build` | typecheck + `dist/client` + `dist/server/index.mjs` + `dist/routines.mjs` |
-| `npm run e2e` | smoke in the installed Chrome with a fake agent and a real script (needs the build; captures in `e2e/.output`) |
+| `npm run e2e` | smoke in the installed Chrome with a fake agent, a real script and a local fake SMTP server (needs the build; captures in `e2e/.output`) |
 | `npm run test:ps1` | `service/listener.test.ps1` (real processes on a free port, no admin) and `scripts/check-backup.test.ps1` |
 | `npm run skills:check` | checks the skill packages against the real CLI (a documented command that does not exist fails) |
 | `npm run routines -- <cmd>` | the CLI in development, without the build |
@@ -212,8 +218,8 @@ dispatches with an atomic claim (one run per routine, a global parallelism cap).
 | `node scripts/make-icons.mjs` | regenerates the app icons from `public/brand/syntax-x.svg` |
 
 Tests and e2e use only temporary folders, never touch `data/`, never call the real Claude or
-Codex and never send e-mail (the e2e clears `SMTP_*` from the environment and points
-`ENV_FILE` at an empty file). CI runs all of it on `windows-latest` and runs gitleaks over the
+Codex and never send e-mail (the e2e clears `SMTP_*` from the environment, points `ENV_FILE` at
+an empty file and configures e-mail against a fake SMTP server on 127.0.0.1). CI runs all of it on `windows-latest` and runs gitleaks over the
 history.
 
 ## Security model
@@ -226,7 +232,9 @@ history.
   The panel is an execution surface: treat the password like your Windows password.
 - Directories are always resolved to their real path: a junction or symlink pointing outside the
   root folder is refused, and system folders are blocked.
-- The only secret (SMTP) lives in `.env`, outside git; the alert recipient lives in the database.
+- The only secret is the SMTP password. Saved from Settings, it is encrypted with Windows DPAPI
+  (current user) before it reaches the database and never leaves the server; in `.env`, it stays
+  outside git. The alert recipient lives in the database.
 
 Vulnerability reports: [SECURITY.md](SECURITY.md). Do not open a public issue for those.
 

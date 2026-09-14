@@ -12,9 +12,13 @@
    the port on the network. The CLI (`routines.cmd`) and the import write straight to
    `data/app.db`, with no password: whoever can read and write the app folder has the same power
    the password gives.
-3. The app's only secret (the SMTP for e-mail alerts) lives in `.env`, outside git and outside the
-   database; the recipient lives in the database. Run logs live in `data/logs/` and may contain
-   whatever the agents and scripts print.
+3. The app's only secret is the SMTP password for e-mail alerts. Saved from Settings, it is
+   encrypted with Windows DPAPI for the current user before it reaches `data/app.db`, so a copy of
+   the database on another PC or under another Windows user does not reveal it; whoever already
+   runs code as your Windows user can open it, the same boundary as `.env`. The API, the CLI and
+   the logs never return it, not even encrypted. It can also live in `.env`, outside git. The
+   recipient lives in the database. Run logs live in `data/logs/` and may contain whatever the
+   agents and scripts print.
 
 Out of scope: multiple users, remote access, isolation between routines (they all run as the
 Windows user) and protection against whoever already has access to the Windows account.
@@ -30,5 +34,6 @@ the problem, how to reproduce it and the impact. Reply within 5 business days. P
 a public issue for flaws that allow running code or reading data without the panel password.
 
 In scope: bypassing authentication or the `Host`/`Origin` guards, running outside the root
-folder, leaking `.env` or the password through the API or the logs, and anything that makes the
+folder, leaking `.env`, the panel password or the SMTP password through the API, the CLI or the
+logs, and anything that makes the
 app accept a request from another origin or another machine.

@@ -4,7 +4,7 @@ import path from "node:path";
 import { createApp } from "./app";
 import { openDb } from "./db";
 import { log, setLogFile } from "./log";
-import { createMailer, type Mailer } from "./mailer";
+import { createMailer, type MailService } from "./mailer";
 import { runAgent as realRunAgent, runScript as realRunScript, type RunAgent, type RunScript } from "./runner";
 import { createScheduler } from "./scheduler";
 
@@ -16,7 +16,7 @@ export interface ServerOptions {
   now?: () => number;
   runAgent?: RunAgent;
   runScript?: RunScript;
-  mailer?: Mailer;
+  mailer?: MailService;
 }
 
 export interface RunningServer {
@@ -33,7 +33,7 @@ export async function startServer(options: ServerOptions): Promise<RunningServer
   setLogFile(path.join(options.dataDir, "app.log"));
   const db = openDb(path.join(options.dataDir, "app.db"));
   const logsDir = path.join(options.dataDir, "logs");
-  const mailer = options.mailer ?? createMailer(process.env);
+  const mailer = options.mailer ?? createMailer({ db, env: process.env, now });
   const panelUrl = `http://127.0.0.1:${options.port}/`;
   const scheduler = createScheduler({
     db,

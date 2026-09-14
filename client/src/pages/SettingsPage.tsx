@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
-import { Activity, FolderTree, KeyRound, Languages, LogOut, Mail, Send } from "lucide-react";
+import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { Activity, FolderTree, KeyRound, Languages, LogOut } from "lucide-react";
 
 import { LanguageSwitch } from "../components/LanguageSwitch";
+import { MailSettingsCard } from "../components/MailSettingsCard";
 import { PageHeader } from "../components/PageHeader";
 import { Badge, Button, Card, ErrorBox, Input, Label, Select, Skeleton, Spinner } from "../components/ui";
 import { useI18n } from "../i18n";
@@ -23,7 +24,6 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
   const [mail, setMail] = useState<MailMeta | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [settingsState, setSettingsState] = useState<FormState>({ kind: "idle" });
-  const [mailTestState, setMailTestState] = useState<FormState>({ kind: "idle" });
   const [status, setStatus] = useState<StatusDto | null>(null);
   const [passwords, setPasswords] = useState(EMPTY_PASSWORDS);
   const [passwordState, setPasswordState] = useState<FormState>({ kind: "idle" });
@@ -50,17 +50,34 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
     return () => clearInterval(timer);
   }, [loadSettings]);
 
+  // O motivo do selo vem traduzido pelo servidor: trocar o idioma do painel pede o estado do e-mail de novo.
+  const shownLanguage = useRef(language);
+  useEffect(() => {
+    if (shownLanguage.current === language) return;
+    shownLanguage.current = language;
+    refreshMail();
+  }, [language]);
+
   function updateForm(patch: Partial<SettingsDto>) {
     setForm((current) => (current ? { ...current, ...patch } : current));
     setSettingsState({ kind: "idle" });
   }
 
-  // O idioma sai do seletor (que ja gravou no servidor), nunca do formulario: salvar Ajustes nao o desfaz.
+  // O idioma sai do seletor (que ja gravou no servidor), nunca do formulario: salvar Ajustes nao o desfaz. O
+  // destinatario tambem fica de fora: quem grava e o modal de e-mail.
   async function persistSettings(): Promise<boolean> {
     if (!form) return false;
     setSettingsState({ kind: "saving" });
     try {
-      const data = await apiRequest<SettingsResponse>("/api/settings", { method: "PUT", body: { ...form, language } });
+      const body = {
+        rootDirectory: form.rootDirectory,
+        claudeBin: form.claudeBin,
+        codexBin: form.codexBin,
+        maxParallel: form.maxParallel,
+        bootDelayMinutes: form.bootDelayMinutes,
+        language
+      };
+      const data = await apiRequest<SettingsResponse>("/api/settings", { method: "PUT", body });
       setForm(data.settings);
       setMail(data.mail);
       setSettingsState({ kind: "saved", message: m.settingsSaved });
@@ -76,19 +93,16 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
     await persistSettings();
   }
 
-  // Salva primeiro: o teste usa o destinatario gravado, o mesmo caminho do aviso de falha.
-  async function sendTestMail() {
-    setMailTestState({ kind: "saving" });
-    if (!(await persistSettings())) {
-      setMailTestState({ kind: "idle" });
-      return;
-    }
-    try {
-      const data = await apiRequest<{ sentTo: string }>("/api/settings/notify-test", { method: "POST" });
-      setMailTestState({ kind: "saved", message: m.testMailSent(data.sentTo) });
-    } catch (error) {
-      setMailTestState({ kind: "error", message: formatApiError(error) });
-    }
+  // O modal grava conta e destinatario: o formulario de cima recebe so o destinatario novo, sem perder o que esta digitado.
+  function applyMail(data: SettingsResponse) {
+    setMail(data.mail);
+    setForm((current) => (current ? { ...current, notifyEmail: data.settings.notifyEmail } : current));
+  }
+
+  function refreshMail() {
+    apiRequest<SettingsResponse>("/api/settings")
+      .then((data) => setMail(data.mail))
+      .catch(() => undefined);
   }
 
   async function changePassword(event: FormEvent) {
@@ -193,41 +207,6 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
                   </div>
                 </div>
 
-                <div className="border-t border-[var(--color-border)] pt-3">
-                  <h3 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-fg)]">
-                    <Mail aria-hidden className="size-4 text-[var(--color-primary)]" /> {m.mailAlerts}
-                  </h3>
-                  <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
-                    <div>
-                      <Label htmlFor={fieldId("notify")}>{m.notifyEmail}</Label>
-                      <Input
-                        id={fieldId("notify")}
-                        type="email"
-                        autoComplete="email"
-                        placeholder={m.notifyPlaceholder}
-                        value={form.notifyEmail}
-                        onChange={(event) => updateForm({ notifyEmail: event.target.value })}
-                      />
-                    </div>
-                    <Button type="button" variant="outline" onClick={() => void sendTestMail()} disabled={mailTestState.kind === "saving" || !form.notifyEmail.trim()}>
-                      {mailTestState.kind === "saving" ? <Spinner className="size-4" /> : <Send aria-hidden className="size-4" />} {m.sendTestMail}
-                    </Button>
-                  </div>
-                  <p className="mt-1 text-[11px] text-[var(--color-fg-subtle)]">
-                    {m.notifyHint} {mail?.isConfigured ? m.mailFrom(mail.from) : m.smtpMissing}
-                  </p>
-                  {mailTestState.kind === "error" && (
-                    <div className="mt-2">
-                      <ErrorBox>{mailTestState.message}</ErrorBox>
-                    </div>
-                  )}
-                  {mailTestState.kind === "saved" && (
-                    <p role="status" className="mt-2 text-xs text-[var(--color-success)]">
-                      {mailTestState.message}
-                    </p>
-                  )}
-                </div>
-
                 {settingsState.kind === "error" && <ErrorBox>{settingsState.message}</ErrorBox>}
                 <div className="flex flex-wrap items-center justify-end gap-3">
                   {settingsState.kind === "saved" && (
@@ -242,6 +221,8 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
               </form>
             )}
           </Card>
+
+          <MailSettingsCard mail={mail} notifyEmail={form?.notifyEmail ?? ""} onSaved={applyMail} onRefresh={refreshMail} />
 
           <Card className="p-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-fg)]">

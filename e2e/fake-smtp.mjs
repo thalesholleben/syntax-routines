@@ -1,0 +1,96 @@
+// SMTP falso para o e2e e para as capturas do README: aceita AUTH PLAIN com UMA senha, guarda as mensagens e nao
+// entrega nada. Sem TLS: o app so dispensa o STARTTLS para 127.0.0.1 (isLoopbackHost em server/src/mailer.ts).
+import net from "node:net";
+
+export function startFakeSmtp({ password }) {
+  const messages = [];
+  const sockets = new Set();
+
+  const server = net.createServer((socket) => {
+    sockets.add(socket);
+    socket.on("close", () => sockets.delete(socket));
+    socket.on("error", () => undefined);
+    socket.setEncoding("utf8");
+    let buffer = "";
+    let mode = "command"; // command | auth | data
+    let isAuthenticated = false;
+    let envelope = { from: "", to: [] };
+    const reply = (line) => socket.write(`${line}\r\n`);
+    const checkAuth = (encoded) => {
+      // AUTH PLAIN: base64 de "autorizacao\0usuario\0senha".
+      const pass = Buffer.from(encoded, "base64").toString("utf8").split(String.fromCharCode(0))[2] ?? "";
+      isAuthenticated = pass === password;
+      reply(isAuthenticated ? "235 2.7.0 Authentication successful" : "535 5.7.8 Username and Password not accepted");
+    };
+
+    reply("220 fake-smtp ESMTP");
+    socket.on("data", (chunk) => {
+      buffer += chunk;
+      for (;;) {
+        if (mode === "data") {
+          const end = buffer.indexOf("\r\n.\r\n");
+          if (end === -1) return;
+          messages.push({ ...envelope, data: buffer.slice(0, end) });
+          buffer = buffer.slice(end + 5);
+          mode = "command";
+          envelope = { from: "", to: [] };
+          reply("250 2.0.0 queued");
+          continue;
+        }
+        const newline = buffer.indexOf("\r\n");
+        if (newline === -1) return;
+        const line = buffer.slice(0, newline);
+        buffer = buffer.slice(newline + 2);
+        if (mode === "auth") {
+          mode = "command";
+          checkAuth(line.trim());
+          continue;
+        }
+        const verb = line.split(" ")[0].toUpperCase();
+        if (verb === "EHLO") reply("250-fake-smtp\r\n250-AUTH PLAIN\r\n250 8BITMIME");
+        else if (verb === "HELO") reply("250 fake-smtp");
+        else if (verb === "AUTH") {
+          const [, mechanism = "", initial] = line.split(" ");
+          if (mechanism.toUpperCase() !== "PLAIN") reply("504 5.5.4 mechanism not supported");
+          else if (initial) checkAuth(initial);
+          else {
+            mode = "auth";
+            reply("334 ");
+          }
+        } else if (verb === "MAIL") {
+          if (!isAuthenticated) reply("530 5.7.0 Authentication required");
+          else {
+            envelope.from = line.slice("MAIL FROM:".length).trim();
+            reply("250 2.1.0 ok");
+          }
+        } else if (verb === "RCPT") {
+          envelope.to.push(line.slice("RCPT TO:".length).trim());
+          reply("250 2.1.5 ok");
+        } else if (verb === "DATA") {
+          mode = "data";
+          reply("354 end data with <CR><LF>.<CR><LF>");
+        } else if (verb === "RSET" || verb === "NOOP") reply("250 2.0.0 ok");
+        else if (verb === "QUIT") {
+          reply("221 2.0.0 bye");
+          socket.end();
+          return;
+        } else reply("502 5.5.2 command not implemented");
+      }
+    });
+  });
+
+  return new Promise((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", () => {
+      resolve({
+        port: server.address().port,
+        messages,
+        close: () =>
+          new Promise((done) => {
+            for (const socket of sockets) socket.destroy();
+            server.close(() => done());
+          })
+      });
+    });
+  });
+}

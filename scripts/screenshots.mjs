@@ -12,6 +12,8 @@ import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright-core";
 
+import { startFakeSmtp } from "../e2e/fake-smtp.mjs";
+
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDir = path.join(projectDir, "docs", "assets", "screenshots");
 const fakeClaude = path.join(projectDir, "e2e", "fake-claude.cmd");
@@ -34,7 +36,9 @@ const UI = {
     settings: "Ajustes",
     root: "Pasta mãe",
     claudeBin: "Binário do Claude Code",
-    notifyEmail: "E-mail de aviso",
+    connected: "Conectado",
+    sender: "avisos@exemplo.com.br",
+    recipient: "voce@exemplo.com.br",
     save: "Salvar ajustes",
     saved: "Ajustes salvos.",
     runNow: "Executar agora",
@@ -52,7 +56,9 @@ const UI = {
     settings: "Settings",
     root: "Root folder",
     claudeBin: "Claude Code binary",
-    notifyEmail: "Alert e-mail",
+    connected: "Connected",
+    sender: "alerts@example.com",
+    recipient: "you@example.com",
     save: "Save settings",
     saved: "Settings saved.",
     runNow: "Run now",
@@ -181,6 +187,9 @@ const tmp = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), "sr-shots-"))
 const dataDir = path.join(tmp, "data");
 const port = await freePort();
 const baseUrl = `http://127.0.0.1:${port}`;
+// Conta de e-mail de demonstracao contra um SMTP falso em 127.0.0.1: a foto de Ajustes mostra o selo Conectado.
+const SMTP_PASSWORD = "senha-de-demonstracao-smtp";
+const smtp = await startFakeSmtp({ password: SMTP_PASSWORD });
 
 // Sem e-mail de verdade: mesmo isolamento do smoke e2e.
 const MAIL_ENV_KEYS = ["SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASS", "MAIL_FROM_EMAIL", "MAIL_FROM_NAME"];
@@ -230,9 +239,22 @@ try {
   await page.getByRole("button", { name: UI.settings, exact: true }).click();
   await page.getByLabel(UI.root).fill(root);
   await page.getByLabel(UI.claudeBin).fill(fakeClaude);
-  await page.getByLabel(UI.notifyEmail).fill(lang === "en" ? "you@example.com" : "voce@exemplo.com.br");
   await page.getByRole("button", { name: UI.save }).click();
   await page.getByText(UI.saved).waitFor();
+  const mailStatus = await page.evaluate(
+    ({ smtpPort, sender, recipient, password }) =>
+      fetch("/api/settings/mail", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ account: { host: "127.0.0.1", port: smtpPort, fromEmail: sender, password }, notifyEmail: recipient })
+      }).then((response) => response.status),
+    { smtpPort: smtp.port, sender: UI.sender, recipient: UI.recipient, password: SMTP_PASSWORD }
+  );
+  if (mailStatus !== 200) throw new Error(`a conta de e-mail de demonstração não salvou: HTTP ${mailStatus}`);
+  // Sai e volta para Ajustes: a tela recarrega e mostra o selo da conta recem salva.
+  await page.getByRole("button", { name: UI.routines, exact: true }).click();
+  await page.getByRole("button", { name: UI.settings, exact: true }).click();
+  await page.getByText(UI.connected, { exact: true }).waitFor();
   // O binario falso nao e assunto da foto: volta o campo ao padrao so na tela (sem salvar).
   await page.getByLabel(UI.claudeBin).fill("claude");
   await page.mouse.move(0, 0);
@@ -278,6 +300,7 @@ try {
 } finally {
   await browser?.close();
   server.kill();
+  await smtp.close();
   await new Promise((resolve) => setTimeout(resolve, 500));
   rmSync(tmp, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });
 }
