@@ -82,12 +82,13 @@ afterEach(async () => {
 function request(
   method: string,
   urlPath: string,
-  options: { body?: unknown; cookie?: string | null; origin?: string | null; host?: string } = {}
+  options: { body?: unknown; cookie?: string | null; origin?: string | null; host?: string; language?: string } = {}
 ): Promise<HttpResult> {
   const payload = options.body === undefined ? undefined : JSON.stringify(options.body);
   const origin = options.origin === undefined ? `http://127.0.0.1:${port}` : options.origin;
   const headers: http.OutgoingHttpHeaders = { host: options.host ?? `127.0.0.1:${port}` };
   if (origin !== null) headers.origin = origin;
+  if (options.language) headers["accept-language"] = options.language;
   if (options.cookie) headers.cookie = options.cookie;
   if (payload !== undefined) {
     headers["content-type"] = "application/json";
@@ -368,6 +369,52 @@ describe("com sessao", () => {
     expect((await request("PUT", "/api/settings", { cookie, body: settingsBody({ rootDirectory: path.join(tmp, "nao-existe") }) })).status).toBe(400);
     expect((await request("PUT", "/api/settings", { cookie, body: settingsBody({ rootDirectory: "C:\\Windows" }) })).status).toBe(400);
     expect((await request("PUT", "/api/settings", { cookie, body: settingsBody({ claudeBin: "claude & calc" }) })).status).toBe(400);
+  });
+});
+
+describe("idioma", () => {
+  it("Accept-Language decide a mensagem da API; sem cabecalho e portugues", async () => {
+    const cookie = await sessionWithRoot();
+    const inPortuguese = await request("POST", "/api/routines", { cookie, body: routineBody({ name: "  " }) });
+    expect(inPortuguese.status).toBe(400);
+    expect(inPortuguese.body).toMatchObject({ message: "Dados inválidos.", details: { fieldErrors: { name: ["Dê um nome para a rotina."] } } });
+
+    const inEnglish = await request("POST", "/api/routines", { cookie, body: routineBody({ name: "  " }), language: "en-US,en;q=0.9" });
+    expect(inEnglish.status).toBe(400);
+    expect(inEnglish.body).toMatchObject({ message: "Invalid data.", details: { fieldErrors: { name: ["Give the routine a name."] } } });
+
+    const outside = await request("POST", "/api/routines", { cookie, body: routineBody({ directory: tmp }), language: "en" });
+    expect(outside.body).toMatchObject({ details: { fieldErrors: { directory: ["Directory outside the root folder."] } } });
+
+    const login = await request("POST", "/api/auth/login", { body: { password: "errada-errada" }, language: "en" });
+    expect(login.status).toBe(401);
+    expect(login.body).toEqual({ message: "Wrong password." });
+
+    const missing = await request("GET", "/api/runs/999", { cookie, language: "en" });
+    expect(missing.status).toBe(404);
+    expect(missing.body).toEqual({ message: "Run not found." });
+  });
+
+  it("o idioma de Ajustes vale para as notas gravadas e para o e-mail; o seletor grava so ele", async () => {
+    const cookie = await sessionWithRoot();
+    expect((await request("GET", "/api/settings", { cookie })).body).toMatchObject({ settings: { language: "pt" } });
+
+    const switched = await request("PUT", "/api/settings/language", { cookie, body: { language: "en" } });
+    expect(switched.status).toBe(200);
+    expect((await request("GET", "/api/settings", { cookie })).body).toMatchObject({ settings: { language: "en", rootDirectory: root } });
+    expect((await request("PUT", "/api/settings/language", { cookie, body: { language: "xx" } })).status).toBe(400);
+
+    const created = await request("POST", "/api/routines", { cookie, body: routineBody() });
+    const id = (created.body as { routine: { id: number } }).routine.id;
+    expect((await request("POST", `/api/routines/${id}/run-now`, { cookie })).status).toBe(202);
+    const runs = (await request("GET", `/api/routines/${id}/runs`, { cookie })).body as { runs: { note: string }[] };
+    expect(runs.runs[0].note).toBe("Manual run.");
+
+    expect((await request("PUT", "/api/settings", { cookie, body: { ...settingsBody(), notifyEmail: "dono@example.com" } })).status).toBe(200);
+    expect((await request("POST", "/api/settings/notify-test", { cookie })).status).toBe(200);
+    expect(sentMail[0]).toMatchObject({ to: "dono@example.com", subject: "[Syntax Routines] Test e-mail" });
+    // O PUT de ajustes sem `language` nao mexe no idioma salvo.
+    expect((await request("GET", "/api/settings", { cookie })).body).toMatchObject({ settings: { language: "en" } });
   });
 });
 

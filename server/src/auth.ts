@@ -3,6 +3,7 @@ import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypt
 import type { RequestHandler, Response } from "express";
 
 import type { Db } from "./db";
+import { messages } from "./i18n";
 
 export const SESSION_COOKIE = "sr_session";
 export const MIN_PASSWORD_LENGTH = 8;
@@ -125,7 +126,7 @@ export const hostGuard: RequestHandler = (req, res, next) => {
   const port = req.socket.localPort;
   const host = (req.headers.host ?? "").toLowerCase();
   if (!port || (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`)) {
-    res.status(403).json({ message: "Host não permitido." });
+    res.status(403).json({ message: messages(req.language).hostNotAllowed });
     return;
   }
   next();
@@ -147,7 +148,7 @@ export function originGuard(isDev: boolean): RequestHandler {
     const isStateChanging = !["GET", "HEAD", "OPTIONS"].includes(req.method);
     const isRejected = origin === undefined ? isStateChanging : !allowed.has(origin);
     if (isRejected) {
-      res.status(403).json({ message: "Origem não permitida." });
+      res.status(403).json({ message: messages(req.language).originNotAllowed });
       return;
     }
     next();
@@ -157,7 +158,7 @@ export function originGuard(isDev: boolean): RequestHandler {
 export function requireAuth(db: Db, now: () => number): RequestHandler {
   return (req, res, next) => {
     if (!isValidSession(db, readSessionToken(req), now())) {
-      res.status(401).json({ message: "Sessão expirada. Entre de novo." });
+      res.status(401).json({ message: messages(req.language).sessionExpired });
       return;
     }
     next();

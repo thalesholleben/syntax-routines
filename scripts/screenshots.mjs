@@ -1,6 +1,7 @@
 // Gera as imagens do README com dados de demonstracao, num app efemero: nada do banco real entra na foto.
 // Pre-requisito: npm run build (usa dist/server e dist/routines.mjs). Chrome instalado (channel "chrome").
 //   node scripts/screenshots.mjs --root C:\tmp\Projetos     # pasta mae que aparece nas fotos (criada se faltar)
+//   node scripts/screenshots.mjs --lang en                  # painel em ingles, arquivos com sufixo -en
 // Saida em docs/assets/screenshots/. As rotinas sao cadastradas pelo proprio CLI do app.
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
@@ -18,6 +19,49 @@ const cli = path.join(projectDir, "dist", "routines.mjs");
 
 const rootArg = process.argv.indexOf("--root");
 const root = rootArg === -1 ? path.join(os.tmpdir(), "syntax-routines-demo") : path.resolve(process.argv[rootArg + 1]);
+const langArg = process.argv.indexOf("--lang");
+const lang = langArg === -1 ? "pt" : process.argv[langArg + 1] === "en" ? "en" : "pt";
+const suffix = lang === "en" ? "-en" : "";
+
+// Rotulos que o script precisa clicar, por idioma do painel.
+const UI = {
+  pt: {
+    locale: "pt-BR",
+    password: "Senha",
+    confirm: "Confirmar senha",
+    createAndEnter: "Criar senha e entrar",
+    routines: "Rotinas",
+    settings: "Ajustes",
+    root: "Pasta mãe",
+    claudeBin: "Binário do Claude Code",
+    notifyEmail: "E-mail de aviso",
+    save: "Salvar ajustes",
+    saved: "Ajustes salvos.",
+    runNow: "Executar agora",
+    done: "Concluída",
+    history: "Histórico",
+    edit: "Editar",
+    editDialog: "Editar rotina"
+  },
+  en: {
+    locale: "en-US",
+    password: "Password",
+    confirm: "Confirm password",
+    createAndEnter: "Create password and sign in",
+    routines: "Routines",
+    settings: "Settings",
+    root: "Root folder",
+    claudeBin: "Claude Code binary",
+    notifyEmail: "Alert e-mail",
+    save: "Save settings",
+    saved: "Settings saved.",
+    runNow: "Run now",
+    done: "Succeeded",
+    history: "History",
+    edit: "Edit",
+    editDialog: "Edit routine"
+  }
+}[lang];
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -43,7 +87,7 @@ async function waitForServer(url, timeoutMs = 20_000) {
   throw new Error(`servidor não respondeu em ${url}`);
 }
 
-const demoRoutines = [
+const demoRoutinesPt = [
   {
     name: "Resumo diário do Google Ads",
     agentKind: "CLAUDE",
@@ -112,6 +156,23 @@ const demoRoutines = [
   }
 ];
 
+const demoRoutinesEn = [
+  {
+    ...demoRoutinesPt[0],
+    name: "Daily Google Ads summary",
+    prompt:
+      "Read yesterday's campaigns in data/ads/ and write the day's summary in reports/YYYY-MM-DD.md: spend, conversions, cost per conversion and what changed against the week. If today's file already exists, do nothing."
+  },
+  {
+    ...demoRoutinesPt[1],
+    name: "Weekly repository review",
+    prompt: "Run the test suite and the linter. List dependencies with known vulnerabilities, red tests and TODOs older than 30 days in docs/weekly-review.md. Do not change code or commit."
+  },
+  { ...demoRoutinesPt[2], name: "Instagram publishing queue", command: "cmd /c echo queue empty: nothing to publish now" },
+  { ...demoRoutinesPt[3], name: "Check last night's backup" }
+];
+const demoRoutines = lang === "en" ? demoRoutinesEn : demoRoutinesPt;
+
 for (const sub of ["clientes\\loja-exemplo", "ferramentas\\instagram", "ferramentas\\backup"]) {
   mkdirSync(path.join(root, sub), { recursive: true });
 }
@@ -148,59 +209,59 @@ function addByCli(routine) {
 }
 
 async function shot(page, name) {
-  await page.screenshot({ path: path.join(outputDir, `${name}.png`) });
-  console.log(`foto  ${name}.png`);
+  await page.screenshot({ path: path.join(outputDir, `${name}${suffix}.png`) });
+  console.log(`foto  ${name}${suffix}.png`);
 }
 
 let browser;
 try {
   await waitForServer(`${baseUrl}/api/auth/state`);
   browser = await chromium.launch({ channel: "chrome", headless: true });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1 });
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, deviceScaleFactor: 1, locale: UI.locale });
 
   await page.goto(baseUrl);
-  await page.getByLabel("Senha", { exact: true }).waitFor();
+  await page.getByLabel(UI.password, { exact: true }).waitFor();
   await shot(page, "login");
-  await page.getByLabel("Senha", { exact: true }).fill("senha-de-demonstracao");
-  await page.getByLabel("Confirmar senha").fill("senha-de-demonstracao");
-  await page.getByRole("button", { name: "Criar senha e entrar" }).click();
-  await page.getByRole("heading", { name: "Rotinas", exact: true }).waitFor();
+  await page.getByLabel(UI.password, { exact: true }).fill("senha-de-demonstracao");
+  await page.getByLabel(UI.confirm).fill("senha-de-demonstracao");
+  await page.getByRole("button", { name: UI.createAndEnter }).click();
+  await page.getByRole("heading", { name: UI.routines, exact: true }).waitFor();
 
-  await page.getByRole("button", { name: "Ajustes", exact: true }).click();
-  await page.getByLabel("Pasta mãe").fill(root);
-  await page.getByLabel("Binário do Claude Code").fill(fakeClaude);
-  await page.getByLabel("E-mail de aviso").fill("voce@exemplo.com.br");
-  await page.getByRole("button", { name: "Salvar ajustes" }).click();
-  await page.getByText("Ajustes salvos.").waitFor();
+  await page.getByRole("button", { name: UI.settings, exact: true }).click();
+  await page.getByLabel(UI.root).fill(root);
+  await page.getByLabel(UI.claudeBin).fill(fakeClaude);
+  await page.getByLabel(UI.notifyEmail).fill(lang === "en" ? "you@example.com" : "voce@exemplo.com.br");
+  await page.getByRole("button", { name: UI.save }).click();
+  await page.getByText(UI.saved).waitFor();
   // O binario falso nao e assunto da foto: volta o campo ao padrao so na tela (sem salvar).
-  await page.getByLabel("Binário do Claude Code").fill("claude");
+  await page.getByLabel(UI.claudeBin).fill("claude");
   await page.mouse.move(0, 0);
   await shot(page, "ajustes");
 
   for (const routine of demoRoutines) addByCli(routine);
 
-  await page.getByRole("button", { name: "Rotinas", exact: true }).click();
-  const ads = page.getByRole("article", { name: "Resumo diário do Google Ads" });
-  const fila = page.getByRole("article", { name: "Fila de publicação do Instagram" });
+  await page.getByRole("button", { name: UI.routines, exact: true }).click();
+  const ads = page.getByRole("article", { name: demoRoutines[0].name });
+  const fila = page.getByRole("article", { name: demoRoutines[2].name });
   await ads.waitFor();
-  await ads.getByRole("button", { name: "Executar agora" }).click();
-  await ads.getByText("Concluída").first().waitFor({ timeout: 30_000 });
-  await fila.getByRole("button", { name: "Executar agora" }).click();
-  await fila.getByText("Concluída").first().waitFor({ timeout: 30_000 });
-  await fila.getByRole("button", { name: "Histórico" }).click();
+  await ads.getByRole("button", { name: UI.runNow }).click();
+  await ads.getByText(UI.done).first().waitFor({ timeout: 30_000 });
+  await fila.getByRole("button", { name: UI.runNow }).click();
+  await fila.getByText(UI.done).first().waitFor({ timeout: 30_000 });
+  await fila.getByRole("button", { name: UI.history }).click();
   await page.mouse.move(0, 0);
   await shot(page, "rotinas");
 
-  await ads.getByRole("button", { name: "Editar" }).click();
-  const editAgent = page.getByRole("dialog", { name: "Editar rotina", exact: true });
+  await ads.getByRole("button", { name: UI.edit }).click();
+  const editAgent = page.getByRole("dialog", { name: UI.editDialog, exact: true });
   await editAgent.waitFor();
   await page.mouse.move(0, 0);
   await shot(page, "modal-agente");
   await page.keyboard.press("Escape");
   await editAgent.waitFor({ state: "detached" });
 
-  await fila.getByRole("button", { name: "Editar" }).click();
-  const editScript = page.getByRole("dialog", { name: "Editar rotina", exact: true });
+  await fila.getByRole("button", { name: UI.edit }).click();
+  const editScript = page.getByRole("dialog", { name: UI.editDialog, exact: true });
   await editScript.waitFor();
   await page.mouse.move(0, 0);
   await shot(page, "modal-script");

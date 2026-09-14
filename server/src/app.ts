@@ -5,6 +5,7 @@ import express, { type ErrorRequestHandler, type RequestHandler } from "express"
 
 import { hostGuard, originGuard, requireAuth } from "./auth";
 import type { Db } from "./db";
+import { languageFromHeader, messages } from "./i18n";
 import { log } from "./log";
 import type { Mailer } from "./mailer";
 import { ConflictError, NotFoundError } from "./routines";
@@ -35,23 +36,23 @@ const securityHeaders: RequestHandler = (_req, res, next) => {
   next();
 };
 
-const errorHandler: ErrorRequestHandler = (error, _req, res, _next) => {
+const errorHandler: ErrorRequestHandler = (error, req, res, _next) => {
   if (error instanceof ValidationError) {
-    res.status(400).json({ message: error.message, details: error.details });
+    res.status(400).json({ message: error.localized(req.language), details: error.details });
     return;
   }
   if (error instanceof NotFoundError) {
-    res.status(404).json({ message: error.message });
+    res.status(404).json({ message: error.localized(req.language) });
     return;
   }
   if (error instanceof ConflictError) {
-    res.status(409).json({ message: error.message });
+    res.status(409).json({ message: error.localized(req.language) });
     return;
   }
   // Erros do body parser (JSON quebrado, corpo grande) trazem status 4xx proprio.
   const status = typeof error?.status === "number" && error.status >= 400 && error.status < 500 ? error.status : 500;
   if (status === 500) log(`[api] erro inesperado: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
-  res.status(status).json({ message: status === 500 ? "Erro interno." : "Requisição inválida." });
+  res.status(status).json({ message: status === 500 ? messages(req.language).internalError : messages(req.language).badRequest });
 };
 
 export function createApp({ db, scheduler, logsDir, mailer, panelUrl, clientDir, isDev = false, now = Date.now }: AppDeps) {
@@ -59,14 +60,18 @@ export function createApp({ db, scheduler, logsDir, mailer, panelUrl, clientDir,
   app.disable("x-powered-by");
   app.use(securityHeaders);
 
+  app.use("/api", (req, _res, next) => {
+    req.language = languageFromHeader(req.headers["accept-language"]);
+    next();
+  });
   app.use("/api", hostGuard);
   app.use("/api", express.json({ limit: "1mb" }));
   app.use("/api", originGuard(isDev));
   app.use("/api/auth", createPublicRouter({ db, now }));
   app.use("/api", requireAuth(db, now)); // daqui para baixo tudo exige sessao
   app.use("/api", createProtectedRouter({ db, scheduler, logsDir, mailer, panelUrl, now }));
-  app.use("/api", (_req, res) => {
-    res.status(404).json({ message: "Rota não encontrada." });
+  app.use("/api", (req, res) => {
+    res.status(404).json({ message: messages(req.language).routeNotFound });
   });
 
   if (clientDir && existsSync(path.join(clientDir, "index.html"))) {

@@ -6,18 +6,10 @@ import { PageHeader } from "../components/PageHeader";
 import { RoutineModal } from "../components/RoutineModal";
 import { RunOutputModal } from "../components/RunOutputModal";
 import { Badge, Button, Card, ErrorBox, Skeleton } from "../components/ui";
+import { useI18n } from "../i18n";
 import { apiRequest, formatApiError } from "../lib/api";
 import { cn } from "../lib/cn";
-import {
-  AGENT_LABEL,
-  basename,
-  formatDateTime,
-  formatDuration,
-  formatRelative,
-  formatSchedule,
-  RUN_STATUS_LABEL,
-  RUN_STATUS_TONE
-} from "../lib/format";
+import { basename, RUN_STATUS_TONE, useFormat } from "../lib/format";
 import type { AgentKind, ExecutorKind, RoutineDto, RunDto, SettingsResponse, StatusDto } from "../types";
 
 const IDLE_POLL_MS = 5000;
@@ -25,6 +17,8 @@ const ACTIVE_POLL_MS = 2000;
 const AGENT_TONE: Record<ExecutorKind, string> = { CLAUDE: "claude", CODEX: "codex", SCRIPT: "script" };
 
 export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const { m, language } = useI18n();
+  const f = useFormat();
   const [routines, setRoutines] = useState<RoutineDto[] | null>(null);
   const [status, setStatus] = useState<StatusDto | null>(null);
   const [meta, setMeta] = useState<SettingsResponse | null>(null);
@@ -58,12 +52,13 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
   }, [loadMeta]);
 
   // Com execucao na fila ou rodando, atualiza mais rapido para o status aparecer sem recarregar.
+  // Trocar o idioma tambem recarrega: o aviso de diretorio vem do servidor no idioma do painel.
   const hasActiveRun = routines?.some((routine) => routine.activeRun !== null) ?? false;
   useEffect(() => {
     void load();
     const timer = setInterval(() => void load(), hasActiveRun ? ACTIVE_POLL_MS : IDLE_POLL_MS);
     return () => clearInterval(timer);
-  }, [load, hasActiveRun]);
+  }, [load, hasActiveRun, language]);
 
   async function act(action: () => Promise<unknown>) {
     setActionError(null);
@@ -80,11 +75,10 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
     .sort((a, b) => (a.nextRunAt ?? 0) - (b.nextRunAt ?? 0))[0];
   const subtitle =
     routines === null
-      ? "Carregando rotinas"
+      ? m.loadingRoutines
       : routines.length === 0
-        ? "Nenhuma rotina ainda"
-        : `${routines.length} ${routines.length === 1 ? "rotina" : "rotinas"}` +
-          (nextRoutine?.nextRunAt ? ` · próxima: ${nextRoutine.name} ${formatRelative(nextRoutine.nextRunAt)}` : "");
+        ? m.noRoutinesYet
+        : m.routineCount(routines.length) + (nextRoutine?.nextRunAt ? m.nextIs(nextRoutine.name, f.formatRelative(nextRoutine.nextRunAt)) : "");
 
   const limitNotices = status
     ? (["CLAUDE", "CODEX"] as AgentKind[])
@@ -95,14 +89,14 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="Rotinas" subtitle={subtitle} />
+      <PageHeader title={m.navRoutines} subtitle={subtitle} />
 
       <div className="flex-1 overflow-y-auto p-3 pb-24 md:p-6 md:pb-6">
         <div className="mx-auto max-w-3xl space-y-3">
           {/* A acao principal da tela, na largura dos cartoes, como o despacho do Ops. */}
           <button type="button" className="syntax-dispatch-cta" onClick={() => setEditing({ routine: null })} disabled={!meta}>
             <Plus className="size-5" aria-hidden="true" />
-            Nova rotina
+            {m.newRoutine}
           </button>
 
           {limitNotices.map(({ kind, resetAt }) => (
@@ -112,17 +106,14 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
               className="flex items-start gap-2 rounded-[var(--radius-md)] border border-[var(--color-warning)]/40 bg-[var(--color-warning)]/10 p-3 text-xs text-[var(--color-warning)]"
             >
               <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
-              <span>
-                {AGENT_LABEL[kind]} está no limite de uso{resetAt ? ` até ${formatDateTime(Date.parse(resetAt))}` : ""}. Rotinas com
-                troca automática rodam no outro agente; as demais esperam.
-              </span>
+              <span>{m.limitNotice(f.agentLabel[kind], resetAt ? m.limitUntil(f.formatDateTime(Date.parse(resetAt))) : "")}</span>
             </div>
           ))}
 
           {actionError && <ErrorBox>{actionError}</ErrorBox>}
           {routines !== null && loadError && (
             <p role="status" className="text-xs text-[var(--color-warning)]">
-              Não consegui atualizar agora ({loadError}). Mostrando o último estado.
+              {m.staleData(loadError)}
             </p>
           )}
 
@@ -138,11 +129,11 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
                     void load();
                   }}
                 >
-                  Tentar de novo
+                  {m.retry}
                 </Button>
               </Card>
             ) : (
-              <RoutineSkeletons />
+              <RoutineSkeletons label={m.loadingRoutines} />
             )
           ) : routines.length === 0 ? (
             <EmptyState hasRoot={hasRoot} onOpenSettings={onOpenSettings} />
@@ -156,7 +147,7 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
                     onCancel={(runId) => void act(() => apiRequest(`/api/runs/${runId}/cancel`, { method: "POST" }))}
                     onEdit={() => setEditing({ routine })}
                     onDelete={() => {
-                      if (window.confirm(`Excluir a rotina "${routine.name}"? O histórico dela também será apagado.`)) {
+                      if (window.confirm(m.confirmDelete(routine.name))) {
                         void act(() => apiRequest(`/api/routines/${routine.id}`, { method: "DELETE" }));
                       }
                     }}
@@ -185,9 +176,9 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
   );
 }
 
-function RoutineSkeletons() {
+function RoutineSkeletons({ label }: { label: string }) {
   return (
-    <div aria-busy="true" aria-label="Carregando rotinas" className="space-y-3">
+    <div aria-busy="true" aria-label={label} className="space-y-3">
       {[0, 1, 2].map((index) => (
         <Card key={index} className="space-y-3 p-4">
           <Skeleton className="h-4 w-1/3" />
@@ -200,18 +191,15 @@ function RoutineSkeletons() {
 }
 
 function EmptyState({ hasRoot, onOpenSettings }: { hasRoot: boolean; onOpenSettings: () => void }) {
+  const { m } = useI18n();
   return (
     <div className="glass flex flex-col items-center gap-3 rounded-[var(--radius-lg)] border border-dashed border-[var(--color-border)] px-6 py-12 text-center">
       <span className="flex size-12 items-center justify-center rounded-full bg-[var(--color-primary)]/15 text-[var(--color-primary)]">
         <CalendarClock aria-hidden className="size-6" />
       </span>
-      <h2 className="text-base font-semibold text-[var(--color-fg)]">Nenhuma rotina agendada</h2>
-      <p className="max-w-sm text-sm text-[var(--color-fg-muted)]">
-        {hasRoot
-          ? "Crie a primeira no botão acima: agente, dias, hora e prompt. No horário marcado ela roda sozinha neste PC."
-          : "Antes da primeira rotina, defina a pasta mãe em Ajustes. Os agentes só rodam dentro dela."}
-      </p>
-      {!hasRoot && <Button onClick={onOpenSettings}>Abrir Ajustes</Button>}
+      <h2 className="text-base font-semibold text-[var(--color-fg)]">{m.emptyTitle}</h2>
+      <p className="max-w-sm text-sm text-[var(--color-fg-muted)]">{hasRoot ? m.emptyWithRoot : m.emptyWithoutRoot}</p>
+      {!hasRoot && <Button onClick={onOpenSettings}>{m.openSettings}</Button>}
     </div>
   );
 }
@@ -231,6 +219,8 @@ function RoutineCard({
   onDelete: () => void;
   onShowOutput: (runId: number) => void;
 }) {
+  const { m } = useI18n();
+  const f = useFormat();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const { activeRun, lastRun } = routine;
   const isRunning = activeRun?.status === "RUNNING";
@@ -248,9 +238,9 @@ function RoutineCard({
     >
       <div className="flex flex-wrap items-center gap-2">
         <ProviderMark kind={routine.agentKind} />
-        <Badge tone={AGENT_TONE[routine.agentKind]}>{AGENT_LABEL[routine.agentKind]}</Badge>
+        <Badge tone={AGENT_TONE[routine.agentKind]}>{f.agentLabel[routine.agentKind]}</Badge>
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--color-fg)]">{routine.name}</h2>
-        {!routine.isEnabled && <Badge tone="muted">Pausada</Badge>}
+        {!routine.isEnabled && <Badge tone="muted">{m.paused}</Badge>}
         {activeRun && (
           <Badge tone={RUN_STATUS_TONE[activeRun.status]}>
             {isRunning && (
@@ -258,7 +248,7 @@ function RoutineCard({
                 ●
               </span>
             )}
-            {RUN_STATUS_LABEL[activeRun.status]}
+            {f.runStatusLabel[activeRun.status]}
           </Badge>
         )}
       </div>
@@ -266,7 +256,7 @@ function RoutineCard({
       <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-fg-muted)]">
         <span className="inline-flex items-center gap-1">
           <CalendarClock aria-hidden className="size-3.5" />
-          {formatSchedule(routine.days, routine.time, routine.intervalMinutes)}
+          {f.formatSchedule(routine.days, routine.time, routine.intervalMinutes)}
         </span>
         <span className="inline-flex min-w-0 items-center gap-1" title={routine.directory}>
           <FolderTree aria-hidden className="size-3.5 shrink-0" />
@@ -276,25 +266,25 @@ function RoutineCard({
 
       <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
         <div>
-          <dt className="text-[var(--color-fg-subtle)]">Próxima</dt>
+          <dt className="text-[var(--color-fg-subtle)]">{m.next}</dt>
           <dd className="tabular mt-0.5 text-[var(--color-fg)]">
             {routine.nextRunAt
-              ? `${formatDateTime(routine.nextRunAt)} (${formatRelative(routine.nextRunAt)})`
+              ? `${f.formatDateTime(routine.nextRunAt)} (${f.formatRelative(routine.nextRunAt)})`
               : routine.isEnabled
-                ? "sem dia marcado"
-                : "rotina pausada"}
+                ? m.noDayMarked
+                : m.routinePaused}
           </dd>
         </div>
         <div>
-          <dt className="text-[var(--color-fg-subtle)]">Última</dt>
+          <dt className="text-[var(--color-fg-subtle)]">{m.last}</dt>
           <dd className="mt-0.5 flex flex-wrap items-center gap-1.5 text-[var(--color-fg)]">
             {lastRun ? (
               <>
-                <Badge tone={RUN_STATUS_TONE[lastRun.status]}>{RUN_STATUS_LABEL[lastRun.status]}</Badge>
-                <span className="tabular">{formatDateTime(lastRun.finishedAt ?? lastRun.createdAt)}</span>
+                <Badge tone={RUN_STATUS_TONE[lastRun.status]}>{f.runStatusLabel[lastRun.status]}</Badge>
+                <span className="tabular">{f.formatDateTime(lastRun.finishedAt ?? lastRun.createdAt)}</span>
               </>
             ) : (
-              "nunca rodou"
+              m.neverRan
             )}
           </dd>
         </div>
@@ -312,26 +302,26 @@ function RoutineCard({
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[var(--color-border)] pt-3">
         {activeRun ? (
           <Button size="sm" variant="outline" onClick={() => onCancel(activeRun.id)}>
-            <Square aria-hidden className="size-3.5" /> Cancelar execução
+            <Square aria-hidden className="size-3.5" /> {m.cancelRun}
           </Button>
         ) : (
           <Button size="sm" onClick={onRunNow}>
-            <Play aria-hidden className="size-3.5" /> Executar agora
+            <Play aria-hidden className="size-3.5" /> {m.runNow}
           </Button>
         )}
         <Button size="sm" variant="ghost" aria-expanded={isHistoryOpen} onClick={() => setIsHistoryOpen((current) => !current)}>
-          <HistoryIcon aria-hidden className="size-3.5" /> Histórico
+          <HistoryIcon aria-hidden className="size-3.5" /> {m.history}
         </Button>
         <Button size="sm" variant="ghost" onClick={onEdit}>
-          <Pencil aria-hidden className="size-3.5" /> Editar
+          <Pencil aria-hidden className="size-3.5" /> {m.edit}
         </Button>
         <Button
           size="sm"
           variant="ghost"
           className="ml-auto hover:text-[var(--color-danger)]"
           onClick={onDelete}
-          aria-label={`Excluir ${routine.name}`}
-          title="Excluir rotina"
+          aria-label={m.deleteNamed(routine.name)}
+          title={m.deleteRoutine}
         >
           <Trash2 aria-hidden className="size-3.5" />
         </Button>
@@ -349,6 +339,8 @@ function RoutineCard({
 }
 
 function RunHistory({ routineId, refreshKey, onShowOutput }: { routineId: number; refreshKey: string; onShowOutput: (runId: number) => void }) {
+  const { m } = useI18n();
+  const f = useFormat();
   const [runs, setRuns] = useState<RunDto[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -384,20 +376,20 @@ function RunHistory({ routineId, refreshKey, onShowOutput }: { routineId: number
     );
   }
   if (runs.length === 0) {
-    return <p className="mt-3 text-xs text-[var(--color-fg-subtle)]">Esta rotina ainda não teve nenhuma execução.</p>;
+    return <p className="mt-3 text-xs text-[var(--color-fg-subtle)]">{m.noRunsYet}</p>;
   }
   return (
     <ul className="mt-3 divide-y divide-[var(--color-border)] rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-bg)]/50">
       {runs.map((run) => (
         <li key={run.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-xs">
-          <Badge tone={RUN_STATUS_TONE[run.status]}>{RUN_STATUS_LABEL[run.status]}</Badge>
-          <span className="text-[var(--color-fg-muted)]">{run.triggerType === "MANUAL" ? "Manual" : "Agendada"}</span>
-          <span className="tabular text-[var(--color-fg)]">{formatDateTime(run.scheduledFor)}</span>
-          {run.agentKind && <span className="text-[var(--color-fg-muted)]">{AGENT_LABEL[run.agentKind]}</span>}
-          {run.startedAt && <span className="tabular text-[var(--color-fg-muted)]">{formatDuration(run.startedAt, run.finishedAt)}</span>}
+          <Badge tone={RUN_STATUS_TONE[run.status]}>{f.runStatusLabel[run.status]}</Badge>
+          <span className="text-[var(--color-fg-muted)]">{run.triggerType === "MANUAL" ? m.manual : m.scheduled}</span>
+          <span className="tabular text-[var(--color-fg)]">{f.formatDateTime(run.scheduledFor)}</span>
+          {run.agentKind && <span className="text-[var(--color-fg-muted)]">{f.agentLabel[run.agentKind]}</span>}
+          {run.startedAt && <span className="tabular text-[var(--color-fg-muted)]">{f.formatDuration(run.startedAt, run.finishedAt)}</span>}
           {run.status !== "SKIPPED" && (
             <Button size="sm" variant="ghost" className="ml-auto" onClick={() => onShowOutput(run.id)}>
-              Ver saída
+              {m.viewOutput}
             </Button>
           )}
           {run.note && <p className="w-full text-xs text-[var(--color-fg-subtle)]">{run.note}</p>}

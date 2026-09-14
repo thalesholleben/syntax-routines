@@ -1,10 +1,11 @@
 import type { AgentKind, ExecutorKind } from "./agents";
 import { transaction, type Db } from "./db";
 import { checkDirectory } from "./directories";
+import { DEFAULT_LANGUAGE, LocalizedError, messages, type Language } from "./i18n";
 import { nextOccurrence, type MissedPolicy } from "./schedule";
 
-export class NotFoundError extends Error {}
-export class ConflictError extends Error {}
+export class NotFoundError extends LocalizedError {}
+export class ConflictError extends LocalizedError {}
 
 export type RunStatus = "QUEUED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "SKIPPED" | "CANCELED";
 export type TriggerType = "SCHEDULE" | "MANUAL";
@@ -132,7 +133,7 @@ export function updateRoutine(db: Db, id: number, input: RoutineInput, nowMs: nu
       WHERE id = :id`
     )
     .run({ ...toParams(input, nowMs), id });
-  if (Number(result.changes) === 0) throw new NotFoundError("Rotina não encontrada.");
+  if (Number(result.changes) === 0) throw new NotFoundError("routineNotFound");
 }
 
 export function getRoutine(db: Db, id: number): RoutineRow | undefined {
@@ -148,8 +149,8 @@ export function hasActiveRun(db: Db, routineId: number): boolean {
 
 export function deleteRoutine(db: Db, id: number): void {
   transaction(db, () => {
-    if (!getRoutine(db, id)) throw new NotFoundError("Rotina não encontrada.");
-    if (hasActiveRun(db, id)) throw new ConflictError("Cancele a execução na fila ou rodando antes de excluir a rotina.");
+    if (!getRoutine(db, id)) throw new NotFoundError("routineNotFound");
+    if (hasActiveRun(db, id)) throw new ConflictError("deleteWithActiveRun");
     db.prepare("DELETE FROM routines WHERE id = :id").run({ id });
   });
 }
@@ -159,7 +160,7 @@ export function toRoutineFields(row: RoutineRow): Omit<RoutineView, "nextRunAt" 
   return { ...rest, days: JSON.parse(daysJson) as number[], isFallbackEnabled: isFallbackEnabled === 1, isEnabled: isEnabled === 1 };
 }
 
-export function listRoutines(db: Db, nowMs: number, rootDirectory: string): RoutineView[] {
+export function listRoutines(db: Db, nowMs: number, rootDirectory: string, language: Language = DEFAULT_LANGUAGE): RoutineView[] {
   const rows = db.prepare(`SELECT ${ROUTINE_COLUMNS} FROM routines ORDER BY name COLLATE NOCASE, id`).all() as unknown as RoutineRow[];
   const lastRun = db.prepare(
     `SELECT ${RUN_COLUMNS} FROM runs WHERE routine_id = :routineId AND status NOT IN ('QUEUED', 'RUNNING')
@@ -176,7 +177,7 @@ export function listRoutines(db: Db, nowMs: number, rootDirectory: string): Rout
       nextRunAt: fields.isEnabled ? nextOccurrence({ days: fields.days, time: fields.time, intervalMinutes: fields.intervalMinutes }, nowMs) : null,
       lastRun: (lastRun.get({ routineId: row.id }) as unknown as RunRow | undefined) ?? null,
       activeRun: (activeRun.get({ routineId: row.id }) as unknown as RunRow | undefined) ?? null,
-      directoryWarning: directory.ok ? null : directory.reason
+      directoryWarning: directory.ok ? null : messages(language)[directory.reason]
     };
   });
 }
@@ -185,16 +186,16 @@ export function listRoutines(db: Db, nowMs: number, rootDirectory: string): Rout
  * Poe uma execucao manual na fila. Mesmas invariantes do botao "Executar agora" do painel, num caminho so:
  * o agendador do app e o CLI chamam esta funcao. Quem despacha continua sendo o agendador.
  */
-export function enqueueManualRun(db: Db, routineId: number, nowMs: number): number {
+export function enqueueManualRun(db: Db, routineId: number, nowMs: number, language: Language = DEFAULT_LANGUAGE): number {
   return transaction(db, () => {
-    if (!getRoutine(db, routineId)) throw new NotFoundError("Rotina não encontrada.");
-    if (hasActiveRun(db, routineId)) throw new ConflictError("Esta rotina já tem uma execução na fila ou rodando.");
+    if (!getRoutine(db, routineId)) throw new NotFoundError("routineNotFound");
+    if (hasActiveRun(db, routineId)) throw new ConflictError("routineHasActiveRun");
     const result = db
       .prepare(
         `INSERT INTO runs (routine_id, trigger_type, scheduled_for, run_at, status, note, created_at)
-        VALUES (:routineId, 'MANUAL', :now, :now, 'QUEUED', 'Execução manual.', :now)`
+        VALUES (:routineId, 'MANUAL', :now, :now, 'QUEUED', :note, :now)`
       )
-      .run({ routineId, now: nowMs });
+      .run({ routineId, now: nowMs, note: messages(language).noteManual });
     return Number(result.lastInsertRowid);
   });
 }

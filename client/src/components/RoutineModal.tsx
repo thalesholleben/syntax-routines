@@ -1,8 +1,9 @@
 import { useEffect, useId, useState } from "react";
 import { AlertTriangle, Check, FolderTree, Save, SlidersHorizontal } from "lucide-react";
 
+import { useI18n } from "../i18n";
 import { apiRequest, formatApiError } from "../lib/api";
-import { AGENT_LABEL, formatInterval, formatSchedule, WEEK_DAYS } from "../lib/format";
+import { useFormat } from "../lib/format";
 import type { AgentKind, AgentsMeta, ExecutorKind, MissedPolicy, RoutineDto, RoutinePayload } from "../types";
 import { EffortToggle } from "./EffortToggle";
 import { ProviderMark } from "./Logo";
@@ -11,11 +12,7 @@ import { Button, Input, Label, Modal, Select, Spinner, Textarea } from "./ui";
 const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const DEFAULT_INTERVAL_MINUTES = 15;
 
-const EXECUTORS: { kind: ExecutorKind; subtitle: string; ariaLabel: string }[] = [
-  { kind: "CLAUDE", subtitle: "Anthropic", ariaLabel: "Anthropic, Claude Code" },
-  { kind: "CODEX", subtitle: "OpenAI", ariaLabel: "OpenAI, Codex" },
-  { kind: "SCRIPT", subtitle: "Comando CLI", ariaLabel: "Script, comando CLI" }
-];
+const EXECUTORS: ExecutorKind[] = ["CLAUDE", "CODEX", "SCRIPT"];
 
 const NEW_ROUTINE: RoutinePayload = {
   name: "",
@@ -78,6 +75,8 @@ export function RoutineModal({
   onSaved: (routine: RoutineDto) => void;
   onClose: () => void;
 }) {
+  const { m } = useI18n();
+  const f = useFormat();
   const baseId = useId();
   const [form, setForm] = useState<RoutinePayload>(NEW_ROUTINE);
   const [directories, setDirectories] = useState<string[]>([]);
@@ -115,12 +114,12 @@ export function RoutineModal({
   const isInterval = form.intervalMinutes !== null;
   const directoryOptions = form.directory && !directories.includes(form.directory) ? [form.directory, ...directories] : directories;
   const hasDirectory = directoryOptions.length > 0;
-  const missedLabel = isInterval ? "próximo horário" : form.missedPolicy === "RUN_ON_BOOT" ? "executa ao ligar" : "pula se desligado";
+  const missedLabel = isInterval ? m.missedNext : form.missedPolicy === "RUN_ON_BOOT" ? m.missedRunOnBoot : m.missedSkip;
   const summary = [
-    AGENT_LABEL[form.agentKind],
+    f.agentLabel[form.agentKind],
     ...(isScript ? [] : [form.effort]),
-    `${form.timeoutMinutes} min`,
-    formatSchedule(form.days, form.time, form.intervalMinutes)
+    m.minutes(form.timeoutMinutes),
+    f.formatSchedule(form.days, form.time, form.intervalMinutes)
   ].join(" · ");
 
   function update(patch: Partial<RoutinePayload>) {
@@ -150,12 +149,12 @@ export function RoutineModal({
   async function submit() {
     if (isBusy) return;
     setError(null);
-    if (!form.name.trim()) return setError("Dê um nome para a rotina.");
-    if (!form.directory) return setError("Escolha o diretório.");
-    if (form.days.length === 0) return setError("Escolha pelo menos um dia.");
-    if (!isInterval && !TIME_PATTERN.test(form.time)) return setError("Informe a hora no formato HH:MM.");
-    if (isScript && !form.command.trim()) return setError("Escreva o comando.");
-    if (!isScript && !form.prompt.trim()) return setError("Escreva o prompt.");
+    if (!form.name.trim()) return setError(m.vName);
+    if (!form.directory) return setError(m.vDirectory);
+    if (form.days.length === 0) return setError(m.vDays);
+    if (!isInterval && !TIME_PATTERN.test(form.time)) return setError(m.vTime);
+    if (isScript && !form.command.trim()) return setError(m.vCommand);
+    if (!isScript && !form.prompt.trim()) return setError(m.vPrompt);
     setIsBusy(true);
     // O servidor normaliza o resto (script sem prompt, agente sem comando); aqui so nao se manda lixo do outro modo.
     const body: RoutinePayload = isScript ? { ...form, prompt: "", model: null, isFallbackEnabled: false } : { ...form, command: "" };
@@ -176,7 +175,7 @@ export function RoutineModal({
     <Modal
       open={open}
       onClose={onClose}
-      title={routine ? "Editar rotina" : "Nova rotina"}
+      title={routine ? m.editRoutine : m.newRoutine}
       wide
       harness={form.agentKind}
       busy={isBusy}
@@ -189,61 +188,59 @@ export function RoutineModal({
                 {error}
               </p>
             ) : !hasDirectory ? (
-              "Configure a pasta mãe em Ajustes para salvar a rotina."
+              m.needRootToSave
             ) : (
               summary
             )}
           </div>
           <div className="grid grid-cols-[0.8fr_1.2fr] gap-2 md:flex md:justify-end">
             <Button variant="outline" onClick={onClose} disabled={isBusy}>
-              Cancelar
+              {m.cancel}
             </Button>
             <Button
               onClick={() => void submit()}
               disabled={isBusy || !hasDirectory}
               className="bg-[var(--dispatch-color)] text-[#121212] hover:bg-[var(--dispatch-color)] hover:opacity-90"
             >
-              {isBusy ? <Spinner /> : <Save className="size-4" />} {isBusy ? "Salvando…" : "Salvar rotina"}
+              {isBusy ? <Spinner /> : <Save className="size-4" />} {isBusy ? m.saving : m.saveRoutine}
             </Button>
           </div>
         </div>
       }
     >
       <fieldset disabled={isBusy} className="syntax-dispatch">
-        <p className="text-xs leading-relaxed text-[var(--color-fg-muted)]">
-          Você escolhe quem executa, quando e o que fazer. No horário, roda sozinho neste PC, sem pedir permissão.
-        </p>
+        <p className="text-xs leading-relaxed text-[var(--color-fg-muted)]">{m.modalIntro}</p>
 
         <div>
-          <Label htmlFor={`${baseId}-name`}>Nome da rotina</Label>
+          <Label htmlFor={`${baseId}-name`}>{m.routineName}</Label>
           <Input
             id={`${baseId}-name`}
             value={form.name}
             maxLength={80}
-            placeholder="Resumo semanal do Google Ads"
+            placeholder={m.routineNamePlaceholder}
             onChange={(event) => update({ name: event.target.value })}
           />
         </div>
 
         <fieldset>
-          <legend>01 · Escolha quem executa</legend>
+          <legend>{m.stepExecutor}</legend>
           <div data-slot="providers">
-            {EXECUTORS.map(({ kind, subtitle, ariaLabel }) => (
-              <button key={kind} type="button" aria-pressed={form.agentKind === kind} onClick={() => chooseExecutor(kind)} aria-label={ariaLabel}>
+            {EXECUTORS.map((kind) => (
+              <button key={kind} type="button" aria-pressed={form.agentKind === kind} onClick={() => chooseExecutor(kind)} aria-label={m.executorAria[kind]}>
                 <ProviderMark kind={kind} />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-base font-semibold text-[var(--color-fg)]">{AGENT_LABEL[kind]}</span>
-                  <span className="mt-1 block text-xs">{subtitle}</span>
+                  <span className="block truncate text-base font-semibold text-[var(--color-fg)]">{f.agentLabel[kind]}</span>
+                  <span className="mt-1 block text-xs">{m.executorSubtitle[kind]}</span>
                 </span>
                 {/* No celular a borda colorida ja mostra qual esta escolhido; o texto fica so no desktop. */}
                 <span className="hidden items-center gap-1 text-xs md:inline-flex">
                   {form.agentKind === kind ? (
                     <>
                       <Check className="size-3.5" />
-                      Selecionado
+                      {m.selected}
                     </>
                   ) : (
-                    "Selecionar"
+                    m.select
                   )}
                 </span>
               </button>
@@ -256,10 +253,10 @@ export function RoutineModal({
           <div className="grid grid-cols-2 gap-3 md:grid-cols-[1fr_1.3fr] md:gap-4">
             <div className="min-w-0">
               <label htmlFor={`${baseId}-model`} data-slot="field-title">
-                Modelo
+                {m.model}
               </label>
               <Select id={`${baseId}-model`} value={form.model ?? ""} onChange={(event) => update({ model: event.target.value || null })}>
-                <option value="">Padrão do CLI</option>
+                <option value="">{m.cliDefault}</option>
                 {models.map((option) => (
                   <option key={option.value} value={option.value}>
                     {option.label}
@@ -270,7 +267,7 @@ export function RoutineModal({
             <fieldset>
               {/* O nivel escolhido e o proprio titulo do campo: muda junto com a chave. */}
               <legend id={`${baseId}-effort`} data-slot="field-title">
-                Esforço ·{" "}
+                {m.effort} ·{" "}
                 <span data-slot="effort-level" data-top={isTopEffort || undefined}>
                   {form.effort}
                 </span>
@@ -281,18 +278,18 @@ export function RoutineModal({
         )}
 
         <fieldset>
-          <legend>02 · Quando roda</legend>
-          <div className="mb-3" role="group" aria-label="Modo de horário" data-slot="mode">
+          <legend>{m.stepWhen}</legend>
+          <div className="mb-3" role="group" aria-label={m.timeMode} data-slot="mode">
             <button type="button" aria-pressed={!isInterval} onClick={() => update({ intervalMinutes: null })}>
-              Hora fixa
+              {m.fixedTime}
             </button>
             <button type="button" aria-pressed={isInterval} onClick={() => update({ intervalMinutes: DEFAULT_INTERVAL_MINUTES })}>
-              A cada intervalo
+              {m.everyInterval}
             </button>
           </div>
           <div data-slot="when">
-            <div role="group" aria-label="Dias da semana" data-slot="days">
-              {WEEK_DAYS.map((day) => (
+            <div role="group" aria-label={m.weekDays} data-slot="days">
+              {f.weekDays.map((day) => (
                 <button key={day.value} type="button" aria-pressed={form.days.includes(day.value)} onClick={() => toggleDay(day.value)}>
                   {day.label}
                 </button>
@@ -300,7 +297,7 @@ export function RoutineModal({
             </div>
             {isInterval ? (
               <div>
-                <Label htmlFor={`${baseId}-interval`}>A cada</Label>
+                <Label htmlFor={`${baseId}-interval`}>{m.every}</Label>
                 <Select
                   id={`${baseId}-interval`}
                   value={String(form.intervalMinutes)}
@@ -308,46 +305,42 @@ export function RoutineModal({
                 >
                   {agents.intervalOptions.map((minutes) => (
                     <option key={minutes} value={minutes}>
-                      {formatInterval(minutes)}
+                      {f.formatInterval(minutes)}
                     </option>
                   ))}
                 </Select>
               </div>
             ) : (
               <div>
-                <Label htmlFor={`${baseId}-time`}>Hora</Label>
+                <Label htmlFor={`${baseId}-time`}>{m.time}</Label>
                 <Input id={`${baseId}-time`} type="time" required value={form.time} onChange={(event) => update({ time: event.target.value })} />
               </div>
             )}
           </div>
           {isInterval && (
-            <p className="mt-2 text-xs text-[var(--color-fg-muted)]">
-              Roda nos minutos cheios do intervalo (por exemplo, 00, 15, 30 e 45) nos dias marcados. Se o PC estiver desligado num
-              deles, a rotina espera o próximo.
-            </p>
+            <p className="mt-2 text-xs text-[var(--color-fg-muted)]">{m.intervalHint}</p>
           )}
         </fieldset>
 
         {isScript ? (
           <section>
-            <Label htmlFor={`${baseId}-command`}>03 · Comando</Label>
+            <Label htmlFor={`${baseId}-command`}>{m.stepCommand}</Label>
             <Input
               id={`${baseId}-command`}
               value={form.command}
               maxLength={agents.commandMaxChars}
-              placeholder="powershell -NoProfile -ExecutionPolicy Bypass -File rodar.ps1"
+              placeholder={m.commandPlaceholder}
               onChange={(event) => update({ command: event.target.value })}
               className="font-mono"
               aria-describedby={`${baseId}-command-hint`}
             />
             <p id={`${baseId}-command-hint`} className="mt-2 text-xs text-[var(--color-fg-muted)]">
-              Uma linha, como você digitaria no cmd. Roda no diretório escolhido, sem janela, e o que o comando imprimir fica no log.
-              Código de saída diferente de 0 conta como falha, sem nova tentativa, e dispara o aviso por e-mail.
+              {m.commandHint}
             </p>
           </section>
         ) : (
           <section>
-            <Label htmlFor={`${baseId}-prompt`}>03 · Escreva o prompt</Label>
+            <Label htmlFor={`${baseId}-prompt`}>{m.stepPrompt}</Label>
             <Textarea
               id={`${baseId}-prompt`}
               rows={7}
@@ -358,8 +351,7 @@ export function RoutineModal({
               aria-describedby={`${baseId}-prompt-hint`}
             />
             <p id={`${baseId}-prompt-hint`} className="mt-2 text-xs text-[var(--color-fg-muted)]">
-              O agente roda sem pedir permissão, dentro do diretório escolhido. Se a rotina publica ou envia algo, peça para ele conferir
-              se já fez hoje: uma nova tentativa roda o prompt inteiro de novo.
+              {m.promptHint}
             </p>
           </section>
         )}
@@ -368,7 +360,7 @@ export function RoutineModal({
           <Label htmlFor={`${baseId}-directory`}>
             <span className="inline-flex items-center gap-1.5">
               <FolderTree className="size-4" />
-              04 · Diretório de trabalho
+              {m.stepDirectory}
             </span>
           </Label>
           <Select
@@ -378,10 +370,10 @@ export function RoutineModal({
             aria-describedby={directoryNote ? `${baseId}-directory-note` : undefined}
             aria-invalid={!form.directory}
           >
-            {!hasDirectory && <option value="">Configure a pasta mãe em Ajustes</option>}
+            {!hasDirectory && <option value="">{m.configureRoot}</option>}
             {directoryOptions.map((directory) => (
               <option key={directory} value={directory}>
-                {directory === rootDirectory ? `${directory} (pasta mãe)` : directory}
+                {directory === rootDirectory ? `${directory} ${m.rootSuffix}` : directory}
               </option>
             ))}
           </Select>
@@ -395,29 +387,29 @@ export function RoutineModal({
         <details>
           <summary>
             <SlidersHorizontal className="mr-2 inline size-4" />
-            Ajustes de execução{" "}
+            {m.runSettings}{" "}
             <span className="font-normal text-[var(--color-fg-muted)]">
-              · {form.timeoutMinutes} min · {missedLabel}
+              · {m.minutes(form.timeoutMinutes)} · {missedLabel}
             </span>
           </summary>
           <div className="grid gap-4 border-t border-[var(--color-border)] p-3 md:p-4">
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <Label htmlFor={`${baseId}-timeout`}>Tempo limite</Label>
+                <Label htmlFor={`${baseId}-timeout`}>{m.timeout}</Label>
                 <Select id={`${baseId}-timeout`} value={String(form.timeoutMinutes)} onChange={(event) => update({ timeoutMinutes: Number(event.target.value) })}>
                   {agents.timeoutOptions.map((minutes) => (
                     <option key={minutes} value={minutes}>
-                      {minutes} min
+                      {m.minutes(minutes)}
                     </option>
                   ))}
                 </Select>
               </div>
               {!isInterval && (
                 <div>
-                  <Label htmlFor={`${baseId}-missed`}>Se o PC estiver desligado</Label>
+                  <Label htmlFor={`${baseId}-missed`}>{m.ifPcOff}</Label>
                   <Select id={`${baseId}-missed`} value={form.missedPolicy} onChange={(event) => update({ missedPolicy: event.target.value as MissedPolicy })}>
-                    <option value="RUN_ON_BOOT">{bootDelayMinutes > 0 ? `Executar ao ligar, depois de ${bootDelayMinutes} min` : "Executar assim que ligar"}</option>
-                    <option value="SKIP">Pular esta vez</option>
+                    <option value="RUN_ON_BOOT">{bootDelayMinutes > 0 ? m.runOnBootAfter(bootDelayMinutes) : m.runOnBootNow}</option>
+                    <option value="SKIP">{m.skipThisTime}</option>
                   </Select>
                 </div>
               )}
@@ -431,16 +423,16 @@ export function RoutineModal({
                   className="mt-1 size-5 shrink-0"
                 />
                 <span>
-                  Trocar de agente ao atingir o limite de uso
-                  <span className="mt-1 block text-xs">Desligado, a rotina espera o limite resetar e tenta de novo com o mesmo agente.</span>
+                  {m.fallbackLabel}
+                  <span className="mt-1 block text-xs">{m.fallbackHint}</span>
                 </span>
               </label>
             )}
             <label className="flex cursor-pointer items-start gap-3 py-2 text-sm text-[var(--color-fg-muted)]">
               <input type="checkbox" checked={form.isEnabled} onChange={(event) => update({ isEnabled: event.target.checked })} className="mt-1 size-5 shrink-0" />
               <span>
-                Rotina ativa
-                <span className="mt-1 block text-xs">Desativada, ela não roda no horário, mas ainda dá para executar agora.</span>
+                {m.enabledLabel}
+                <span className="mt-1 block text-xs">{m.enabledHint}</span>
               </span>
             </label>
           </div>

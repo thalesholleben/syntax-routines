@@ -72,19 +72,28 @@ let browser;
 try {
   await waitForServer(`${baseUrl}/api/auth/state`);
   browser = await chromium.launch({ channel: "chrome", headless: true });
-  const page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
+  // O Chrome headless fala en-US; sem locale o painel abriria em ingles e os seletores abaixo nao casariam.
+  const page = await browser.newPage({ viewport: { width: 1280, height: 900 }, locale: "pt-BR" });
   const consoleErrors = [];
   page.on("console", (message) => {
     if (message.type() !== "error") return;
     // O 400 do e-mail de teste sem SMTP e esperado (passo 5c); o Chrome registra toda resposta 4xx como erro de console.
     if ((message.location()?.url ?? "").endsWith("/api/settings/notify-test")) return;
+    // A sonda de idioma pede um 400 de proposito (passo 2); o Chrome registra todo 4xx como erro de console.
+    if ((message.location()?.url ?? "").includes("probe=language")) return;
     consoleErrors.push(message.text());
   });
   page.on("pageerror", (error) => consoleErrors.push(String(error)));
 
-  // 1. primeiro acesso cria a senha
+  // 1. primeiro acesso cria a senha; antes, o seletor de idioma troca a tela inteira e volta
   await page.goto(baseUrl);
   await page.getByLabel("Senha", { exact: true }).waitFor();
+  await page.getByRole("button", { name: "English" }).click();
+  await page.getByRole("heading", { name: "Create password" }).waitFor();
+  check((await page.evaluate(() => document.documentElement.lang)) === "en-US", "seletor EN troca o painel e o lang do documento");
+  await page.getByRole("button", { name: "Português" }).click();
+  await page.getByRole("heading", { name: "Criar senha" }).waitFor();
+  check(true, "seletor PT volta ao português");
   await page.screenshot({ path: path.join(outputDir, "login-1280.png") });
   await page.getByLabel("Senha", { exact: true }).fill("senha-e2e-123");
   await page.getByLabel("Confirmar senha").fill("senha-e2e-123");
@@ -99,6 +108,16 @@ try {
   await page.getByRole("button", { name: "Salvar ajustes" }).click();
   await page.getByText("Ajustes salvos.").waitFor();
   check(true, "pasta mãe e binário salvos em Ajustes");
+  const languageInSettings = await page.evaluate(() => fetch("/api/settings").then((response) => response.json()).then((data) => data.settings.language));
+  check(languageInSettings === "pt", "idioma do painel foi gravado em Ajustes ao entrar");
+  const englishError = await page.evaluate(() =>
+    fetch("/api/routines?probe=language", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "Accept-Language": "en" },
+      body: JSON.stringify({})
+    }).then((response) => response.json())
+  );
+  check(englishError.message === "Invalid data.", "API responde em inglês quando o painel pede em inglês");
 
   // 3. modal por teclado
   await page.getByRole("button", { name: "Rotinas", exact: true }).click();

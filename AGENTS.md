@@ -1,7 +1,7 @@
 # AGENTS.md
 
-Instructions for agents changing Syntax Routines. Read `README.md` first. Interface text and
-the agent skill are in Brazilian Portuguese on purpose: that is the product's audience.
+Instructions for agents changing Syntax Routines. Read `README.md` first. The panel speaks
+Brazilian Portuguese and English; the CLI output and the agent skill are in Portuguese on purpose.
 
 ## Official commands
 
@@ -38,7 +38,12 @@ None of these commands touches `data/`, calls the real Claude or Codex, or sends
    same `execute`: stdin closed, `windowsHide`, timeout with `taskkill /t`, no retry and no `LimitTracker`.
 9. **Names:** database in snake_case with `AS "field"` aliases on reads; JSON and TypeScript in
    camelCase; booleans with `is`/`has`.
-10. **Interface text in Brazilian Portuguese, without em dashes** as punctuation.
+10. **Every interface string lives in the two dictionaries**, `client/src/i18n.tsx` (panel) and
+    `server/src/i18n.ts` (API messages, run notes, e-mail), in Portuguese and English; `en` is typed
+    against `pt`, so a missing translation does not compile. No hard-coded text in components or
+    routes. The API language comes from `Accept-Language` (`req.language`); run notes and e-mail come
+    from `settings.language`. Portuguese is the default everywhere, so the CLI and the older tests
+    keep reading Portuguese. No em dashes as punctuation in either language.
 11. **One validation path for routines:** `routineSchema` + `normalizeRoutine` in
     `server/src/routes.ts`. Import and CLI go through `prepareRoutine` (`scripts/routine-input.ts`),
     which calls both; do not duplicate a rule, and the CLI takes the accepted field list from
@@ -67,6 +72,7 @@ None of these commands touches `data/`, calls the real Claude or Codex, or sends
 | Database migration | `server/src/db.ts` |
 | Routes and validation (zod) | `server/src/routes.ts` |
 | Theme and visual utilities | `client/src/index.css`, registry in `docs/css-namespaces.md` |
+| Panel and server text, language selector | `client/src/i18n.tsx`, `server/src/i18n.ts`, `client/src/components/LanguageSwitch.tsx` |
 | Routine dialog | `client/src/components/RoutineModal.tsx` |
 | Windows installation | `service/install.ps1`, `service/uninstall.ps1` |
 | Agent CLI and skill packages | `scripts/routines-cli.ts`, `skills/` (gate: `scripts/check-skills.mjs`) |

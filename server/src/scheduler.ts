@@ -3,6 +3,7 @@ import path from "node:path";
 import { MAX_ATTEMPTS, normalizeEffort, otherAgent, type AgentKind, type ExecutorKind } from "./agents";
 import { transaction, type Db } from "./db";
 import { checkDirectory } from "./directories";
+import { LOCALE, messages, type Language } from "./i18n";
 import { LimitTracker } from "./limit-tracker";
 import { log } from "./log";
 import type { Mailer } from "./mailer";
@@ -27,7 +28,7 @@ export const NOTIFY_WINDOW_MS = 24 * 60 * 60_000;
 export const NOTIFY_MAX_ATTEMPTS = 3;
 const DEFAULT_PANEL_URL = "http://127.0.0.1:4090/";
 
-const REASON_TEXT: Record<string, string> = { limit: "limite de uso", transient: "erro temporário", fatal: "erro" };
+const REASON_KEY = { limit: "reasonLimit", transient: "reasonTransient", fatal: "reasonFatal" } as const;
 
 // Acrescenta uma frase a nota da execucao sem apagar o que ja estava la.
 const APPEND_NOTE = "CASE WHEN :note IS NULL THEN note WHEN note IS NULL THEN :note ELSE note || ' ' || :note END";
@@ -39,8 +40,8 @@ interface DueRun {
   attempt: number;
 }
 
-function clockText(ms: number): string {
-  return new Date(ms).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+function clockText(ms: number, language: Language): string {
+  return new Date(ms).toLocaleTimeString(LOCALE[language], { hour: "2-digit", minute: "2-digit" });
 }
 
 /**
@@ -89,7 +90,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
   /** Materializa as ocorrencias desde o ultimo tick (regra de PC desligado inclusa) e despacha a fila. */
   function tick(): void {
     const nowMs = now();
-    const { bootDelayMinutes } = readSettings(db);
+    const { bootDelayMinutes, language } = readSettings(db);
     transaction(db, () => {
       const stored = getMeta(db, LAST_TICK_KEY);
       const lastTick = stored === null ? nowMs : Number(stored);
@@ -105,7 +106,8 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
         const spec = { days, time: routine.time, intervalMinutes: routine.intervalMinutes };
         const occurrences = occurrencesBetween(spec, from, nowMs);
         const plans = planWindow(occurrences, nowMs, routine.missedPolicy, bootDelayMinutes * 60_000, undefined, {
-          isInterval: routine.intervalMinutes !== null
+          isInterval: routine.intervalMinutes !== null,
+          language
         });
         for (const plan of plans) {
           insert.run({
@@ -140,7 +142,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
     db.prepare(
       `UPDATE runs SET status = 'CANCELED', finished_at = :now, note = ${APPEND_NOTE}
       WHERE status = 'QUEUED' AND trigger_type = 'SCHEDULE' AND routine_id IN (SELECT id FROM routines WHERE enabled = 0)`
-    ).run({ now: nowMs, note: "Rotina desativada." });
+    ).run({ now: nowMs, note: messages(settings.language).noteDisabled });
 
     const due = db
       .prepare(
@@ -189,9 +191,10 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
     if (!routine) return;
 
     // Revalida no despacho: a pasta mae pode ter mudado e a pasta pode ter virado junction desde que a rotina foi salva.
+    const m = messages(settings.language);
     const directory = checkDirectory(settings.rootDirectory, routine.directory);
     if (!directory.ok) {
-      failBeforeStart(run, routine, nowMs, directory.reason);
+      failBeforeStart(run, routine, nowMs, m[directory.reason]);
       return;
     }
 
@@ -205,13 +208,13 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
     if (limits.isOnLimit(agent)) {
       const other = otherAgent(agent);
       if (routine.isFallbackEnabled === 1 && !limits.isOnLimit(other)) {
-        note = `${agent} no limite de uso; rodando com ${other}.`;
+        note = m.noteLimitSwitch(agent, other);
         agent = other;
       } else {
         const retryAt = (limits.getResetAt(agent)?.getTime() ?? nowMs + UNKNOWN_RESET_WAIT_MS) + LIMIT_BUFFER_MS;
         db.prepare(`UPDATE runs SET run_at = :retryAt, note = ${APPEND_NOTE} WHERE id = :id AND status = 'QUEUED'`).run({
           retryAt,
-          note: `${agent} no limite de uso; aguardando até ${clockText(retryAt)}.`,
+          note: m.noteLimitWait(agent, clockText(retryAt, settings.language)),
           id: run.id
         });
         return;
@@ -236,14 +239,14 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
       attempt
     });
     log(`execução ${run.id} (${routine.name}) iniciada com ${agent}, tentativa ${attempt}`);
-    watch(run.id, handle, (outcome) => finishRun(run.id, routine, agent, attempt, outcome));
+    watch(run.id, handle, (outcome) => finishRun(run.id, routine, agent, attempt, outcome, settings.language));
   }
 
   /** Script: sem limite de uso, sem fallback e sem retry. O codigo de saida decide. */
   function startScriptRun(run: DueRun, routine: RoutineRow, settings: Settings, nowMs: number, directory: string): void {
     const command = routine.command?.trim() ?? "";
     if (!command) {
-      failBeforeStart(run, routine, nowMs, "Rotina de script sem comando.");
+      failBeforeStart(run, routine, nowMs, messages(settings.language).errorScriptWithoutCommand);
       return;
     }
     if (!claimRun(db, { id: run.id, agent: "SCRIPT", now: nowMs, maxParallel: settings.maxParallel, note: null })) return;
@@ -255,13 +258,14 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
       logFile: path.join(logsDir, `${run.id}.log`)
     });
     log(`execução ${run.id} (${routine.name}) iniciada como script`);
-    watch(run.id, handle, (outcome) => finishScriptRun(run.id, routine, outcome));
+    watch(run.id, handle, (outcome) => finishScriptRun(run.id, routine, outcome, settings.language));
   }
 
-  function finishScriptRun(runId: number, routine: RoutineRow, outcome: AgentRunOutcome): void {
+  function finishScriptRun(runId: number, routine: RoutineRow, outcome: AgentRunOutcome, language: Language): void {
     // Cancelada pelo usuario: o status ja e CANCELED. App encerrando: a recuperacao da proxima subida resolve.
     if (outcome.isKilled && !outcome.isTimedOut) return;
     const nowMs = now();
+    const m = messages(language);
     if (outcome.code === 0 && !outcome.isTimedOut) {
       db.prepare(
         `UPDATE runs SET status = 'SUCCEEDED', finished_at = :now, exit_code = 0, result = :result, error = NULL
@@ -271,10 +275,10 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
       return;
     }
     const detail = outcome.isTimedOut
-      ? `Timeout após ${routine.timeoutMinutes} min.\n${outcome.stderrTail}`
+      ? `${m.errorTimeout(routine.timeoutMinutes)}\n${outcome.stderrTail}`
       : outcome.spawnError
-        ? `Falha ao iniciar o comando: ${outcome.spawnError}`
-        : `O comando encerrou com código ${outcome.code}.\n${outcome.result.slice(0, 2000)}\n${outcome.stderrTail}`;
+        ? m.errorSpawnCommand(outcome.spawnError)
+        : `${m.errorCommandExit(outcome.code)}\n${outcome.result.slice(0, 2000)}\n${outcome.stderrTail}`;
     db.prepare(
       `UPDATE runs SET status = 'FAILED', finished_at = :now, exit_code = :exitCode, result = :result, error = :error
       WHERE id = :id AND status = 'RUNNING'`
@@ -282,10 +286,11 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
     log(`execução ${runId} (${routine.name}) falhou: código ${outcome.code ?? "nenhum"}`);
   }
 
-  function finishRun(runId: number, routine: RoutineRow, agent: AgentKind, attempt: number, outcome: AgentRunOutcome): void {
+  function finishRun(runId: number, routine: RoutineRow, agent: AgentKind, attempt: number, outcome: AgentRunOutcome, language: Language): void {
     // Cancelada pelo usuario: o status ja e CANCELED. App encerrando: a recuperacao da proxima subida resolve.
     if (outcome.isKilled && !outcome.isTimedOut) return;
     const nowMs = now();
+    const m = messages(language);
 
     if (outcome.code === 0 && !outcome.isTimedOut) {
       db.prepare(
@@ -297,10 +302,10 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
     }
 
     const detail = outcome.isTimedOut
-      ? `Timeout após ${routine.timeoutMinutes} min.\n${outcome.stderrTail}`
+      ? `${m.errorTimeout(routine.timeoutMinutes)}\n${outcome.stderrTail}`
       : outcome.spawnError
-        ? `Falha ao iniciar ${agent}: ${outcome.spawnError}`
-        : `${agent} encerrou com código ${outcome.code}.\n${outcome.result.slice(0, 2000)}\n${outcome.stderrTail}`;
+        ? m.errorSpawnAgent(agent, outcome.spawnError)
+        : `${m.errorAgentExit(agent, outcome.code)}\n${outcome.result.slice(0, 2000)}\n${outcome.stderrTail}`;
     const error = detail.trim().slice(0, ERROR_MAX_CHARS);
     const decision = decideRetry({ text: error, attemptCount: attempt, maxAttempts: MAX_ATTEMPTS, now: new Date(nowMs) });
     if (decision.reason === "limit") limits.recordLimit(agent, decision.rawResetAt ?? null);
@@ -310,7 +315,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
         `UPDATE runs SET status = 'FAILED', finished_at = :now, exit_code = :exitCode, error = :error
         WHERE id = :id AND status = 'RUNNING'`
       ).run({ now: nowMs, exitCode: outcome.code, error, id: runId });
-      log(`execução ${runId} (${routine.name}) falhou: ${REASON_TEXT[decision.reason]}`);
+      log(`execução ${runId} (${routine.name}) falhou: ${messages("pt")[REASON_KEY[decision.reason]]}`);
       return;
     }
 
@@ -318,9 +323,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
     const isFallback = decision.reason === "limit" && routine.isFallbackEnabled === 1 && !limits.isOnLimit(other);
     const nextAgent = isFallback ? other : agent;
     const runAt = isFallback ? nowMs : decision.nextRetryAt.getTime();
-    const note = isFallback
-      ? `${agent} no limite de uso; nova tentativa com ${other}.`
-      : `Tentativa ${attempt} falhou (${REASON_TEXT[decision.reason]}); nova tentativa às ${clockText(runAt)}.`;
+    const note = isFallback ? m.noteLimitFallback(agent, other) : m.noteRetry(attempt, m[REASON_KEY[decision.reason]], clockText(runAt, language));
     db.prepare(
       `UPDATE runs SET status = 'QUEUED', run_at = :runAt, force_agent = :forceAgent, exit_code = :exitCode, error = :error,
         note = ${APPEND_NOTE}
@@ -334,7 +337,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
    */
   async function notifyFailures(): Promise<number> {
     if (isNotifying || isStopped) return 0;
-    const { notifyEmail } = readSettings(db);
+    const { notifyEmail, language } = readSettings(db);
     if (!mailer || !mailer.isConfigured || !notifyEmail) return 0;
     isNotifying = true;
     let sent = 0;
@@ -355,7 +358,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
         const routine = run ? getRoutine(db, run.routineId) : undefined;
         if (!run || !routine) continue;
         try {
-          await mailer.send({ to: notifyEmail, ...buildFailureEmail({ run, routine, panelUrl }) });
+          await mailer.send({ to: notifyEmail, ...buildFailureEmail({ run, routine, panelUrl, language }) });
           db.prepare("UPDATE runs SET notified_at = :now WHERE id = :id").run({ now: now(), id });
           sent += 1;
           log(`aviso de falha da execução ${id} (${routine.name}) enviado para ${notifyEmail}`);
@@ -371,7 +374,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
   }
 
   function runNow(routineId: number): number {
-    const runId = enqueueManualRun(db, routineId, now());
+    const runId = enqueueManualRun(db, routineId, now(), readSettings(db).language);
     safeDispatch();
     return runId;
   }
@@ -382,10 +385,10 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
         `UPDATE runs SET status = 'CANCELED', finished_at = :now, note = ${APPEND_NOTE}
         WHERE id = :id AND status IN ('QUEUED', 'RUNNING')`
       )
-      .run({ now: now(), note: "Cancelada pelo usuário.", id: runId });
+      .run({ now: now(), note: messages(readSettings(db).language).noteCanceled, id: runId });
     if (Number(result.changes) === 0) {
       const exists = db.prepare("SELECT 1 AS found FROM runs WHERE id = :id").get({ id: runId });
-      throw exists ? new ConflictError("Esta execução já terminou.") : new NotFoundError("Execução não encontrada.");
+      throw exists ? new ConflictError("runAlreadyFinished") : new NotFoundError("runNotFound");
     }
     running.get(runId)?.kill();
   }
@@ -394,10 +397,10 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
   function recoverOnBoot(): number {
     const result = db
       .prepare(
-        `UPDATE runs SET status = 'FAILED', finished_at = :now, error = 'Interrompida: o app foi encerrado durante a execução.'
+        `UPDATE runs SET status = 'FAILED', finished_at = :now, error = :error
         WHERE status = 'RUNNING'`
       )
-      .run({ now: now() });
+      .run({ now: now(), error: messages(readSettings(db).language).errorInterrupted });
     return Number(result.changes);
   }
 

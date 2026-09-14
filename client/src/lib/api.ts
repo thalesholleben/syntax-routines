@@ -1,3 +1,5 @@
+import { getLanguage, LOCALE, messages } from "../i18n";
+
 export class ApiError extends Error {
   readonly status: number;
   readonly details: unknown;
@@ -25,7 +27,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 
 export function formatApiError(error: unknown): string {
   if (!(error instanceof ApiError)) {
-    return error instanceof Error ? error.message : "Erro inesperado.";
+    return error instanceof Error ? error.message : messages(getLanguage()).unexpectedError;
   }
   const details = error.details;
   if (isObject(details) && isObject(details.fieldErrors)) {
@@ -45,14 +47,15 @@ export async function apiRequest<T>(path: string, options: ApiOptions = {}): Pro
   const response = await fetch(path, {
     ...rest,
     credentials: "same-origin",
-    headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...headers },
+    // O servidor responde (validacao, erros) no idioma do painel.
+    headers: { "Accept-Language": LOCALE[getLanguage()], ...(body === undefined ? {} : { "Content-Type": "application/json" }), ...headers },
     body: body === undefined ? undefined : JSON.stringify(body)
   });
   const payload: unknown = response.status === 204 ? null : await response.json().catch(() => null);
   if (!response.ok) {
     if (response.status === 401 && !path.startsWith("/api/auth/")) unauthorizedHandler?.();
     throw new ApiError(
-      (isObject(payload) && typeof payload.message === "string" && payload.message) || "Falha na requisição.",
+      (isObject(payload) && typeof payload.message === "string" && payload.message) || messages(getLanguage()).requestFailed,
       response.status,
       isObject(payload) ? payload.details : undefined
     );

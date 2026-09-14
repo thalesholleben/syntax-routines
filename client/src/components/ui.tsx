@@ -11,6 +11,7 @@ import {
 } from "react";
 import { AlertTriangle } from "lucide-react";
 
+import { useI18n } from "../i18n";
 import { cn } from "../lib/cn";
 import type { ExecutorKind } from "../types";
 
@@ -180,6 +181,8 @@ export function Modal({
   harness?: ExecutorKind;
   busy?: boolean;
 }) {
+  const { m } = useI18n();
+  const closeLabel = m.close;
   const dialogRef = useRef<HTMLDialogElement>(null);
   const titleId = useId();
 
@@ -244,7 +247,7 @@ export function Modal({
           type="button"
           onClick={onClose}
           disabled={busy}
-          aria-label="Fechar"
+          aria-label={closeLabel}
           className="shrink-0 cursor-pointer rounded-lg text-xl text-[var(--color-fg-muted)] hover:bg-[var(--color-surface-2)]"
         >
           ×

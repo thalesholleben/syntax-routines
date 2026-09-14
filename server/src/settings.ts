@@ -1,4 +1,5 @@
 import type { Db } from "./db";
+import { DEFAULT_LANGUAGE, isLanguage, type Language } from "./i18n";
 
 export interface Settings {
   rootDirectory: string;
@@ -8,6 +9,8 @@ export interface Settings {
   bootDelayMinutes: number;
   /** Destinatario dos avisos de falha; vazio = sem aviso. */
   notifyEmail: string;
+  /** Idioma das notas de execucao e do e-mail (o painel manda o dele por Accept-Language). */
+  language: Language;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -16,7 +19,8 @@ export const DEFAULT_SETTINGS: Settings = {
   codexBin: "codex",
   maxParallel: 2,
   bootDelayMinutes: 10,
-  notifyEmail: ""
+  notifyEmail: "",
+  language: DEFAULT_LANGUAGE
 };
 
 const KEY_BY_FIELD: Record<keyof Settings, string> = {
@@ -25,7 +29,8 @@ const KEY_BY_FIELD: Record<keyof Settings, string> = {
   codexBin: "codex_bin",
   maxParallel: "max_parallel",
   bootDelayMinutes: "boot_delay_minutes",
-  notifyEmail: "notify_email"
+  notifyEmail: "notify_email",
+  language: "language"
 };
 
 export function readSettings(db: Db): Settings {
@@ -38,7 +43,8 @@ export function readSettings(db: Db): Settings {
     codexBin: pick("codexBin") ?? DEFAULT_SETTINGS.codexBin,
     maxParallel: Number(pick("maxParallel") ?? DEFAULT_SETTINGS.maxParallel),
     bootDelayMinutes: Number(pick("bootDelayMinutes") ?? DEFAULT_SETTINGS.bootDelayMinutes),
-    notifyEmail: pick("notifyEmail") ?? DEFAULT_SETTINGS.notifyEmail
+    notifyEmail: pick("notifyEmail") ?? DEFAULT_SETTINGS.notifyEmail,
+    language: isLanguage(pick("language")) ? (pick("language") as Language) : DEFAULT_SETTINGS.language
   };
 }
 

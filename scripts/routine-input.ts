@@ -5,6 +5,7 @@ import path from "node:path";
 import { z } from "zod";
 
 import { checkDirectory } from "../server/src/directories";
+import { DEFAULT_LANGUAGE, messages } from "../server/src/i18n";
 import type { RoutineInput } from "../server/src/routines";
 import { normalizeRoutine, routineSchema } from "../server/src/routes";
 
@@ -22,6 +23,6 @@ export function prepareRoutine(rootDirectory: string, record: Record<string, unk
 
   const input = normalizeRoutine(result.data);
   const directory = checkDirectory(rootDirectory, input.directory);
-  if (!directory.ok) return { ok: false, problem: `${directory.reason} (${input.directory})` };
+  if (!directory.ok) return { ok: false, problem: `${messages(DEFAULT_LANGUAGE)[directory.reason]} (${input.directory})` };
   return { ok: true, input: { ...input, directory: directory.real } };
 }

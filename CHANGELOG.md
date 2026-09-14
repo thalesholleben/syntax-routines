@@ -7,9 +7,14 @@ commit on `main`.
 
 ### Added
 
-- Banner, screenshots with demo data (`scripts/screenshots.mjs`), Open Graph images in Portuguese
-  and English (`scripts/render-og.mjs`), `SUPPORT.md` and this changelog, preparing the repository
-  to go public. README in English with a Brazilian Portuguese version.
+- **Panel in English and Portuguese**, with a discreet selector on the sign-in screen, at the bottom
+  of the sidebar and in Settings. The choice is kept in the browser and in Settings; the API answers
+  in the panel's language (`Accept-Language`), and run notes and alert e-mails follow Settings.
+  Dictionaries are typed against each other (`client/src/i18n.tsx`, `server/src/i18n.ts`).
+- Landing page for `routines.syntaxlab.com.br` under `site/` (Portuguese and English).
+- Banner, screenshots with demo data (`scripts/screenshots.mjs`, `--lang en`), Open Graph images in
+  Portuguese and English (`scripts/render-og.mjs`), `SUPPORT.md` and this changelog, preparing the
+  repository to go public. README in English with a Brazilian Portuguese version.
 
 ## 0.1.0 · 2026-09-14
 

@@ -33,8 +33,9 @@ concluir que ele não tem o Routines.
 | `defina a pasta mãe em Ajustes` | o usuário abre o painel, vai em Ajustes e escolhe a pasta mãe. Só ele faz isso |
 | o CLI avisa que o agendador não confere a fila | o processo não está rodando: peça para ele abrir o atalho "Syntax Routines" |
 
-O painel fica em `http://127.0.0.1:4090/`, com senha própria criada no primeiro acesso. Você
-não precisa dela para o CLI, e não deve pedi-la.
+O painel fica em `http://127.0.0.1:4090/`, com senha própria criada no primeiro acesso, em
+português ou inglês (seletor na tela de login e no pé da barra lateral). Você não precisa da senha
+para o CLI, e não deve pedi-la.
 
 ## Instalar o app
 

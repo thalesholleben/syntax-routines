@@ -1,15 +1,11 @@
 import { useId, useState, type FormEvent } from "react";
 import { CalendarClock, Power, ScrollText } from "lucide-react";
 
+import { LanguageSwitch } from "../components/LanguageSwitch";
 import { Wordmark } from "../components/Logo";
 import { Button, Input, Label, Spinner } from "../components/ui";
+import { useI18n } from "../i18n";
 import { ApiError, apiRequest, formatApiError } from "../lib/api";
-
-const FEATURES = [
-  { label: "Rotinas por dia e hora", icon: CalendarClock },
-  { label: "PC desligado sob controle", icon: Power },
-  { label: "Histórico e saída de cada execução", icon: ScrollText }
-];
 
 export function LoginPage({
   isSetupRequired,
@@ -20,8 +16,14 @@ export function LoginPage({
   onAuthenticated: () => void;
   onStateChanged: () => void;
 }) {
+  const { m } = useI18n();
   const baseId = useId();
   const [password, setPassword] = useState("");
+  const features = [
+    { label: m.featureSchedule, icon: CalendarClock },
+    { label: m.featurePcOff, icon: Power },
+    { label: m.featureHistory, icon: ScrollText }
+  ];
   const [confirmation, setConfirmation] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -31,7 +33,7 @@ export function LoginPage({
     if (isBusy) return;
     setError(null);
     if (isSetupRequired && password !== confirmation) {
-      setError("As senhas não conferem.");
+      setError(m.passwordsDiffer);
       return;
     }
     setIsBusy(true);
@@ -64,18 +66,15 @@ export function LoginPage({
 
             <div className="space-y-4">
               <h1 className="text-2xl font-bold leading-[1.04] tracking-tight text-[var(--color-fg)] sm:text-5xl lg:text-6xl">
-                Suas rotinas rodam sozinhas.
+                {m.heroLine1}
                 <br />
-                <span className="text-gradient">No horário certo, neste PC.</span>
+                <span className="text-gradient">{m.heroLine2}</span>
               </h1>
-              <p className="max-w-lg text-sm leading-6 text-[var(--color-fg-muted)] sm:text-base">
-                Cadastre uma vez: agente, dias, hora e prompt. O app executa o Claude Code ou o Codex no seu computador, respeita o
-                limite de uso e decide o que fazer quando o PC estava desligado no horário.
-              </p>
+              <p className="max-w-lg text-sm leading-6 text-[var(--color-fg-muted)] sm:text-base">{m.heroLead}</p>
             </div>
 
             <div className="hidden grid-cols-3 gap-3 lg:grid">
-              {FEATURES.map(({ label, icon: Icon }) => (
+              {features.map(({ label, icon: Icon }) => (
                 <div
                   key={label}
                   className="card-hover glass flex flex-col items-center gap-2 rounded-[var(--radius-lg)] border border-[var(--color-border)] px-3 py-4 text-center"
@@ -90,25 +89,24 @@ export function LoginPage({
           </section>
 
           <div className="flex w-full max-w-md flex-col items-stretch gap-3 lg:ml-auto">
-            <div className="flex justify-start lg:justify-end">
-              <div className="flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)]/60 p-1 backdrop-blur">
+            <div className="flex items-center justify-between gap-3 lg:justify-end">
+              <LanguageSwitch isAuthenticated={false} className="lg:order-2" />
+              <div className="flex rounded-full border border-[var(--color-border)] bg-[var(--color-surface-2)]/60 p-1 backdrop-blur lg:order-1">
                 <span className="rounded-full bg-[var(--color-primary)] px-3.5 py-1 text-xs font-medium uppercase tracking-[0.22em] text-[var(--color-primary-fg)]">
-                  {isSetupRequired ? "Primeiro acesso" : "Login"}
+                  {isSetupRequired ? m.firstAccess : m.login}
                 </span>
               </div>
             </div>
 
             <div className="glass w-full rounded-[var(--radius-lg)] border border-[var(--color-border-strong)] p-5 md:p-6">
               <div className="mb-5 space-y-1">
-                <h2 className="text-xl font-semibold tracking-tight text-[var(--color-fg)]">{isSetupRequired ? "Criar senha" : "Entrar"}</h2>
-                <p className="text-xs text-[var(--color-fg-subtle)]">
-                  {isSetupRequired ? "Crie a senha que protege o painel deste PC." : "Use a senha deste PC."}
-                </p>
+                <h2 className="text-xl font-semibold tracking-tight text-[var(--color-fg)]">{isSetupRequired ? m.createPassword : m.signIn}</h2>
+                <p className="text-xs text-[var(--color-fg-subtle)]">{isSetupRequired ? m.createPasswordHint : m.signInHint}</p>
               </div>
 
               <form onSubmit={handleSubmit} className="space-y-3.5">
                 <div>
-                  <Label htmlFor={`${baseId}-password`}>Senha</Label>
+                  <Label htmlFor={`${baseId}-password`}>{m.password}</Label>
                   <Input
                     id={`${baseId}-password`}
                     type="password"
@@ -123,7 +121,7 @@ export function LoginPage({
 
                 {isSetupRequired && (
                   <div>
-                    <Label htmlFor={`${baseId}-confirmation`}>Confirmar senha</Label>
+                    <Label htmlFor={`${baseId}-confirmation`}>{m.confirmPassword}</Label>
                     <Input
                       id={`${baseId}-confirmation`}
                       type="password"
@@ -143,7 +141,7 @@ export function LoginPage({
                 )}
 
                 <Button type="submit" disabled={isBusy} className="w-full">
-                  {isBusy ? <Spinner /> : isSetupRequired ? "Criar senha e entrar" : "Entrar"}
+                  {isBusy ? <Spinner /> : isSetupRequired ? m.createPasswordAndEnter : m.signIn}
                 </Button>
               </form>
             </div>

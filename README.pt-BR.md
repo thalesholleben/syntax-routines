@@ -52,13 +52,16 @@ suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
   esgotado, diretório fora da pasta mãe, app encerrado no meio) gera um e-mail com a rotina, o
   erro e o link do painel. Sucesso não avisa.
 - **Histórico e log** de cada execução no painel e pelo CLI, com retenção de 30 dias.
+- **Português ou inglês.** Um seletor discreto na tela de login e no pé da barra lateral troca o
+  painel inteiro; a escolha vale também para as notas das execuções e para o e-mail de aviso.
 - **Um agente cuida disso por você.** O CLI e a skill deixam o Claude Code ou o Codex consultar,
   sugerir e, com a sua confirmação, cadastrar rotinas.
 
 ## Prévia do produto
 
 Dados de demonstração, gerados por `node scripts/screenshots.mjs` em uma instalação
-descartável; nenhuma rotina real aparece aqui.
+descartável; nenhuma rotina real aparece aqui. As mesmas telas em inglês estão no
+[README.md](README.md).
 
 ### Rotinas
 
@@ -200,7 +203,7 @@ e despacha com um claim atômico (uma execução por rotina, teto global de para
 | `npm run test:ps1` | `service/listener.test.ps1` (processos reais numa porta livre, sem admin) e `scripts/check-backup.test.ps1` |
 | `npm run skills:check` | confere os pacotes de skill contra o CLI de verdade (comando documentado que não existe reprova) |
 | `npm run routines -- <cmd>` | o CLI em desenvolvimento, sem precisar do build |
-| `node scripts/screenshots.mjs` | regera as imagens deste README numa instalação descartável |
+| `node scripts/screenshots.mjs` | regera as imagens deste README numa instalação descartável (`--lang en` para as do README em inglês) |
 | `node scripts/make-icons.mjs` | regera os ícones do app a partir de `public/brand/syntax-x.svg` |
 
 Testes e e2e usam só pastas temporárias, não tocam em `data/`, não chamam Claude ou Codex de

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { CalendarClock, LogOut, Settings as SettingsIcon } from "lucide-react";
 
+import { LanguageSwitch } from "./components/LanguageSwitch";
 import { Logo } from "./components/Logo";
 import { Button, ErrorBox, Spinner } from "./components/ui";
+import { getLanguage, useI18n } from "./i18n";
 import { apiRequest, formatApiError, setUnauthorizedHandler } from "./lib/api";
 import { cn } from "./lib/cn";
 import { LoginPage } from "./pages/LoginPage";
@@ -12,12 +14,13 @@ import type { AuthState } from "./types";
 
 type Tab = "routines" | "settings";
 
-const NAV: { id: Tab; label: string; icon: typeof CalendarClock }[] = [
-  { id: "routines", label: "Rotinas", icon: CalendarClock },
-  { id: "settings", label: "Ajustes", icon: SettingsIcon }
+const NAV: { id: Tab; icon: typeof CalendarClock }[] = [
+  { id: "routines", icon: CalendarClock },
+  { id: "settings", icon: SettingsIcon }
 ];
 
 export function App() {
+  const { m } = useI18n();
   const [auth, setAuth] = useState<AuthState | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [tab, setTab] = useState<Tab>("routines");
@@ -34,6 +37,12 @@ export function App() {
     refreshAuth();
   }, [refreshAuth]);
 
+  // Ao entrar, o idioma escolhido no navegador vai para Ajustes: e o que as notas e o e-mail vao usar.
+  function handleAuthenticated() {
+    setAuth({ isSetupRequired: false, isAuthenticated: true });
+    apiRequest("/api/settings/language", { method: "PUT", body: { language: getLanguage() } }).catch(() => undefined);
+  }
+
   async function logout() {
     await apiRequest("/api/auth/logout", { method: "POST" }).catch(() => undefined);
     setAuth({ isSetupRequired: false, isAuthenticated: false });
@@ -46,9 +55,11 @@ export function App() {
         {authError ? (
           <div className="w-full max-w-sm space-y-3 text-center">
             <Logo className="mx-auto size-12" />
-            <ErrorBox>Não consegui falar com o Syntax Routines neste PC. {authError}</ErrorBox>
+            <ErrorBox>
+              {m.cannotReach} {authError}
+            </ErrorBox>
             <Button variant="outline" onClick={refreshAuth}>
-              Tentar de novo
+              {m.retry}
             </Button>
           </div>
         ) : (
@@ -65,7 +76,7 @@ export function App() {
     return (
       <LoginPage
         isSetupRequired={auth.isSetupRequired}
-        onAuthenticated={() => setAuth({ isSetupRequired: false, isAuthenticated: true })}
+        onAuthenticated={handleAuthenticated}
         onStateChanged={refreshAuth}
       />
     );
@@ -75,7 +86,7 @@ export function App() {
     <div className="flex h-[100dvh] flex-col-reverse bg-[var(--color-bg)] md:flex-row">
       {/* Rail lateral no desktop, tab bar inferior no celular: mesma casca do Syntax Ops. */}
       <nav
-        aria-label="Navegação principal"
+        aria-label={m.navLabel}
         className={cn(
           "z-30 flex shrink-0 items-stretch justify-around border-[var(--color-border)] bg-[var(--color-surface)]",
           "border-t pb-[env(safe-area-inset-bottom)]",
@@ -107,16 +118,20 @@ export function App() {
               >
                 <Icon aria-hidden className="size-5" />
               </span>
-              {item.label}
+              {item.id === "routines" ? m.navRoutines : m.navSettings}
             </button>
           );
         })}
+        {/* Seletor de idioma discreto no pe do rail; no celular ele fica em Ajustes. */}
+        <div className="hidden md:mt-auto md:flex md:justify-center">
+          <LanguageSwitch isAuthenticated />
+        </div>
         <button
           type="button"
           onClick={() => void logout()}
-          title="Sair"
-          aria-label="Sair"
-          className="hidden cursor-pointer md:mb-3 md:mt-auto md:flex md:size-9 md:items-center md:justify-center md:rounded-[var(--radius-md)] md:text-[var(--color-fg-subtle)] md:hover:bg-[var(--color-surface-2)] md:hover:text-[var(--color-danger)]"
+          title={m.logout}
+          aria-label={m.logout}
+          className="hidden cursor-pointer md:mb-3 md:mt-2 md:flex md:size-9 md:items-center md:justify-center md:rounded-[var(--radius-md)] md:text-[var(--color-fg-subtle)] md:hover:bg-[var(--color-surface-2)] md:hover:text-[var(--color-danger)]"
         >
           <LogOut aria-hidden className="size-5" />
         </button>

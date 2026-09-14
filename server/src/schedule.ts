@@ -1,6 +1,8 @@
 // Calculo puro das ocorrencias de uma rotina em horario local: dias da semana + HH:MM, ou dias da semana +
 // "a cada N minutos" (grade alinhada a meia-noite local). Sem banco e sem relogio: quem chama passa os instantes em ms.
 
+import { DEFAULT_LANGUAGE, messages, type Language } from "./i18n";
+
 export const GRACE_MS = 2 * 60_000;
 const DAY_MS = 86_400_000;
 const MINUTES_PER_DAY = 1440;
@@ -89,9 +91,10 @@ export function planWindow(
   policy: MissedPolicy,
   delayMs: number,
   graceMs = GRACE_MS,
-  options: { isInterval?: boolean } = {}
+  options: { isInterval?: boolean; language?: Language } = {}
 ): PlannedRun[] {
   if (occurrences.length === 0) return [];
+  const m = messages(options.language ?? DEFAULT_LANGUAGE);
   const sorted = [...occurrences].sort((a, b) => a - b);
   const latest = sorted[sorted.length - 1];
   if (options.isInterval) {
@@ -102,7 +105,7 @@ export function planWindow(
       scheduledFor,
       status: "SKIPPED",
       runAt: null,
-      note: "Substituída pela ocorrência mais recente."
+      note: m.noteSuperseded
     })
   );
   if (nowMs - latest <= graceMs) {
@@ -112,10 +115,10 @@ export function planWindow(
       scheduledFor: latest,
       status: "QUEUED",
       runAt: nowMs + delayMs,
-      note: `PC desligado no horário; executada ao ligar, com atraso de ${Math.round(delayMs / 60_000)} min.`
+      note: m.noteRunOnBoot(Math.round(delayMs / 60_000))
     });
   } else {
-    plans.push({ scheduledFor: latest, status: "SKIPPED", runAt: null, note: "PC desligado ou app fechado no horário." });
+    plans.push({ scheduledFor: latest, status: "SKIPPED", runAt: null, note: m.noteSkippedOff });
   }
   return plans;
 }

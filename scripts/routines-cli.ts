@@ -345,7 +345,7 @@ const COMMANDS: Record<string, Command> = {
     summary: "põe uma execução manual na fila; quem executa é o app",
     run(ctx, args) {
       const routine = requireRoutine(ctx, args[0]);
-      const runId = enqueueManualRun(ctx.db, routine.id, ctx.now);
+      const runId = enqueueManualRun(ctx.db, routine.id, ctx.now, readSettings(ctx.db).language);
       console.log(`execução #${runId} na fila para "${routine.name}". O app despacha em até 30 s.`);
       console.log(`acompanhe com: runs ${routine.id}   |   saída: log ${runId}`);
       warnIfSchedulerStopped(ctx);
@@ -451,6 +451,7 @@ const COMMANDS: Record<string, Command> = {
       }
       console.log(`pasta mãe: ${settings.rootDirectory || "não configurada (configure em Ajustes)"}`);
       console.log(`e-mail de aviso: ${settings.notifyEmail || "nenhum (falha não avisa ninguém)"}`);
+      console.log(`idioma do painel, das notas e do e-mail: ${settings.language}`);
       console.log(`em paralelo: ${settings.maxParallel} | atraso ao ligar: ${settings.bootDelayMinutes} min`);
       console.log(`agendador: ${lastTickAt === null ? "ainda não rodou" : `último tick ${when(lastTickAt)}`}`);
       console.log("");

@@ -1,0 +1,453 @@
+// Idioma do painel: portugues (padrao para quem navega em pt) e ingles. A escolha fica no localStorage e,
+// logado, tambem em Ajustes (o servidor usa Ajustes para as notas de execucao e o e-mail). `en` e tipado
+// contra `pt`: texto novo sem traducao nao compila.
+import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+
+export const LANGUAGES = ["pt", "en"] as const;
+export type Language = (typeof LANGUAGES)[number];
+export const LOCALE: Record<Language, string> = { pt: "pt-BR", en: "en-US" };
+const STORAGE_KEY = "syntax-routines.language";
+
+const pt = {
+  // comuns
+  appName: "Syntax Routines",
+  retry: "Tentar de novo",
+  close: "Fechar",
+  cancel: "Cancelar",
+  language: "Idioma",
+  unexpectedError: "Erro inesperado.",
+  requestFailed: "Falha na requisição.",
+  agentLabel: { CLAUDE: "Claude Code", CODEX: "Codex", SCRIPT: "Script" } as Record<string, string>,
+  runStatus: { QUEUED: "Na fila", RUNNING: "Executando", SUCCEEDED: "Concluída", FAILED: "Falhou", SKIPPED: "Pulada", CANCELED: "Cancelada" } as Record<string, string>,
+  manual: "Manual",
+  scheduled: "Agendada",
+  // app
+  navRoutines: "Rotinas",
+  navSettings: "Ajustes",
+  navLabel: "Navegação principal",
+  logout: "Sair",
+  cannotReach: "Não consegui falar com o Syntax Routines neste PC.",
+  // login
+  featureSchedule: "Rotinas por dia e hora",
+  featurePcOff: "PC desligado sob controle",
+  featureHistory: "Histórico e saída de cada execução",
+  passwordsDiffer: "As senhas não conferem.",
+  heroLine1: "Suas rotinas rodam sozinhas.",
+  heroLine2: "No horário certo, neste PC.",
+  heroLead:
+    "Cadastre uma vez: agente, dias, hora e prompt. O app executa o Claude Code ou o Codex no seu computador, respeita o limite de uso e decide o que fazer quando o PC estava desligado no horário.",
+  firstAccess: "Primeiro acesso",
+  login: "Login",
+  createPassword: "Criar senha",
+  signIn: "Entrar",
+  createPasswordHint: "Crie a senha que protege o painel deste PC.",
+  signInHint: "Use a senha deste PC.",
+  password: "Senha",
+  confirmPassword: "Confirmar senha",
+  createPasswordAndEnter: "Criar senha e entrar",
+  // rotinas
+  loadingRoutines: "Carregando rotinas",
+  noRoutinesYet: "Nenhuma rotina ainda",
+  routineCount: (count: number) => `${count} ${count === 1 ? "rotina" : "rotinas"}`,
+  nextIs: (name: string, when: string) => ` · próxima: ${name} ${when}`,
+  newRoutine: "Nova rotina",
+  limitNotice: (agent: string, until: string) =>
+    `${agent} está no limite de uso${until}. Rotinas com troca automática rodam no outro agente; as demais esperam.`,
+  limitUntil: (when: string) => ` até ${when}`,
+  staleData: (error: string) => `Não consegui atualizar agora (${error}). Mostrando o último estado.`,
+  emptyTitle: "Nenhuma rotina agendada",
+  emptyWithRoot: "Crie a primeira no botão acima: agente, dias, hora e prompt. No horário marcado ela roda sozinha neste PC.",
+  emptyWithoutRoot: "Antes da primeira rotina, defina a pasta mãe em Ajustes. Os agentes só rodam dentro dela.",
+  openSettings: "Abrir Ajustes",
+  paused: "Pausada",
+  next: "Próxima",
+  last: "Última",
+  noDayMarked: "sem dia marcado",
+  routinePaused: "rotina pausada",
+  neverRan: "nunca rodou",
+  cancelRun: "Cancelar execução",
+  runNow: "Executar agora",
+  history: "Histórico",
+  edit: "Editar",
+  deleteNamed: (name: string) => `Excluir ${name}`,
+  deleteRoutine: "Excluir rotina",
+  confirmDelete: (name: string) => `Excluir a rotina "${name}"? O histórico dela também será apagado.`,
+  noRunsYet: "Esta rotina ainda não teve nenhuma execução.",
+  viewOutput: "Ver saída",
+  // modal de rotina
+  editRoutine: "Editar rotina",
+  vName: "Dê um nome para a rotina.",
+  vDirectory: "Escolha o diretório.",
+  vDays: "Escolha pelo menos um dia.",
+  vTime: "Informe a hora no formato HH:MM.",
+  vCommand: "Escreva o comando.",
+  vPrompt: "Escreva o prompt.",
+  needRootToSave: "Configure a pasta mãe em Ajustes para salvar a rotina.",
+  saving: "Salvando…",
+  saveRoutine: "Salvar rotina",
+  modalIntro: "Você escolhe quem executa, quando e o que fazer. No horário, roda sozinho neste PC, sem pedir permissão.",
+  routineName: "Nome da rotina",
+  routineNamePlaceholder: "Resumo semanal do Google Ads",
+  stepExecutor: "01 · Escolha quem executa",
+  executorSubtitle: { CLAUDE: "Anthropic", CODEX: "OpenAI", SCRIPT: "Comando CLI" } as Record<string, string>,
+  executorAria: { CLAUDE: "Anthropic, Claude Code", CODEX: "OpenAI, Codex", SCRIPT: "Script, comando CLI" } as Record<string, string>,
+  selected: "Selecionado",
+  select: "Selecionar",
+  model: "Modelo",
+  cliDefault: "Padrão do CLI",
+  effort: "Esforço",
+  effortTitle: "Mais esforço pode consumir mais tempo e cota.",
+  stepWhen: "02 · Quando roda",
+  timeMode: "Modo de horário",
+  fixedTime: "Hora fixa",
+  everyInterval: "A cada intervalo",
+  weekDays: "Dias da semana",
+  every: "A cada",
+  time: "Hora",
+  intervalHint: "Roda nos minutos cheios do intervalo (por exemplo, 00, 15, 30 e 45) nos dias marcados. Se o PC estiver desligado num deles, a rotina espera o próximo.",
+  stepCommand: "03 · Comando",
+  commandPlaceholder: "powershell -NoProfile -ExecutionPolicy Bypass -File rodar.ps1",
+  commandHint:
+    "Uma linha, como você digitaria no cmd. Roda no diretório escolhido, sem janela, e o que o comando imprimir fica no log. Código de saída diferente de 0 conta como falha, sem nova tentativa, e dispara o aviso por e-mail.",
+  stepPrompt: "03 · Escreva o prompt",
+  promptHint:
+    "O agente roda sem pedir permissão, dentro do diretório escolhido. Se a rotina publica ou envia algo, peça para ele conferir se já fez hoje: uma nova tentativa roda o prompt inteiro de novo.",
+  stepDirectory: "04 · Diretório de trabalho",
+  configureRoot: "Configure a pasta mãe em Ajustes",
+  rootSuffix: "(pasta mãe)",
+  runSettings: "Ajustes de execução",
+  missedNext: "próximo horário",
+  missedRunOnBoot: "executa ao ligar",
+  missedSkip: "pula se desligado",
+  timeout: "Tempo limite",
+  minutes: (n: number) => `${n} min`,
+  ifPcOff: "Se o PC estiver desligado",
+  runOnBootAfter: (n: number) => `Executar ao ligar, depois de ${n} min`,
+  runOnBootNow: "Executar assim que ligar",
+  skipThisTime: "Pular esta vez",
+  fallbackLabel: "Trocar de agente ao atingir o limite de uso",
+  fallbackHint: "Desligado, a rotina espera o limite resetar e tenta de novo com o mesmo agente.",
+  enabledLabel: "Rotina ativa",
+  enabledHint: "Desativada, ela não roda no horário, mas ainda dá para executar agora.",
+  // saida da execucao
+  runTitle: (id: string) => `Execução #${id}`,
+  attempt: (n: number) => `tentativa ${n}`,
+  scheduledFor: "Previsto",
+  startedAt: "Início",
+  duration: "Duração",
+  error: "Erro",
+  agentOutput: "Saída do agente",
+  noOutputYet: "Sem saída ainda.",
+  hideLog: "Esconder log",
+  showLog: "Ver log",
+  logTruncated: (size: string) => `Log grande: mostrando só os últimos 2 MB de ${size}. O arquivo inteiro está no caminho abaixo.`,
+  emptyLog: "Log vazio.",
+  file: "Arquivo",
+  // ajustes
+  settingsSubtitle: "Configuração deste PC",
+  rootAndAgents: "Pasta mãe e agentes",
+  rootFolder: "Pasta mãe",
+  rootPlaceholder: "C:\\Users\\voce\\Projetos",
+  rootHint: "Os agentes só rodam dentro desta pasta ou das subpastas dela. Rotina fora dela falha sem executar.",
+  claudeBin: "Binário do Claude Code",
+  codexBin: "Binário do Codex",
+  maxParallel: "Execuções ao mesmo tempo",
+  bootDelay: "Atraso ao ligar o PC",
+  noDelay: "sem atraso",
+  bootDelayHint: "Vale para as rotinas marcadas para executar ao ligar.",
+  mailAlerts: "Avisos por e-mail",
+  notifyEmail: "E-mail de aviso",
+  notifyPlaceholder: "voce@exemplo.com",
+  sendTestMail: "Enviar e-mail de teste",
+  notifyHint: "Quando uma rotina falhar, o aviso chega aqui. Vazio, ninguém é avisado.",
+  mailFrom: (from: string) => `Remetente: ${from}.`,
+  smtpMissing: "SMTP não configurado neste PC: crie o arquivo .env a partir do .env.example e reinicie o app.",
+  testMailSent: (to: string) => `E-mail de teste enviado para ${to}.`,
+  settingsSaved: "Ajustes salvos.",
+  saveSettings: "Salvar ajustes",
+  scheduler: "Agendador",
+  lastCheck: "Última verificação",
+  notRunYet: "ainda não rodou",
+  runningNow: "Executando agora",
+  usageLimit: "Limite de uso",
+  until: (when: string) => `até ${when}`,
+  noTime: "sem horário",
+  free: "livre",
+  schedulerHint: "O agendador confere as rotinas a cada 30 segundos enquanto o PC está ligado e o app está rodando.",
+  passwordSection: "Senha",
+  currentPassword: "Senha atual",
+  newPassword: "Nova senha",
+  confirmNewPassword: "Confirmar nova senha",
+  confirmationMismatch: "A confirmação não confere com a nova senha.",
+  passwordChanged: "Senha trocada. As outras sessões foram encerradas.",
+  changePassword: "Trocar senha",
+  session: "Sessão",
+  sessionHint: "Sai só deste navegador. As rotinas continuam rodando.",
+  languageHint: "Vale para o painel, para as notas das execuções e para o e-mail de aviso.",
+  // formatacao
+  dayShort: ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"],
+  everyDay: "Todo dia",
+  weekdays: "Seg a Sex",
+  weekend: "Fim de semana",
+  noDay: "sem dia",
+  atTime: (days: string, time: string) => `${days} às ${time}`,
+  everyN: (interval: string, days: string) => `a cada ${interval}, ${days}`,
+  noDate: "sem data",
+  lessThanMinute: "menos de 1 min",
+  inAmount: (amount: string) => `em ${amount}`,
+  agoAmount: (amount: string) => `há ${amount}`,
+  notStarted: "não iniciou",
+  hours: (n: number) => `${n} h`,
+  days: (n: number) => `${n} d`
+};
+
+export type Messages = typeof pt;
+
+const en: Messages = {
+  appName: "Syntax Routines",
+  retry: "Try again",
+  close: "Close",
+  cancel: "Cancel",
+  language: "Language",
+  unexpectedError: "Unexpected error.",
+  requestFailed: "Request failed.",
+  agentLabel: { CLAUDE: "Claude Code", CODEX: "Codex", SCRIPT: "Script" },
+  runStatus: { QUEUED: "Queued", RUNNING: "Running", SUCCEEDED: "Succeeded", FAILED: "Failed", SKIPPED: "Skipped", CANCELED: "Canceled" },
+  manual: "Manual",
+  scheduled: "Scheduled",
+  navRoutines: "Routines",
+  navSettings: "Settings",
+  navLabel: "Main navigation",
+  logout: "Sign out",
+  cannotReach: "Could not reach Syntax Routines on this PC.",
+  featureSchedule: "Routines by day and time",
+  featurePcOff: "PC off, under control",
+  featureHistory: "History and output of every run",
+  passwordsDiffer: "The passwords do not match.",
+  heroLine1: "Your routines run on their own.",
+  heroLine2: "At the right time, on this PC.",
+  heroLead:
+    "Register once: agent, days, time and prompt. The app runs Claude Code or Codex on your computer, respects the usage limit and decides what to do when the PC was off at the scheduled time.",
+  firstAccess: "First access",
+  login: "Sign in",
+  createPassword: "Create password",
+  signIn: "Sign in",
+  createPasswordHint: "Create the password that protects this PC's panel.",
+  signInHint: "Use this PC's password.",
+  password: "Password",
+  confirmPassword: "Confirm password",
+  createPasswordAndEnter: "Create password and sign in",
+  loadingRoutines: "Loading routines",
+  noRoutinesYet: "No routines yet",
+  routineCount: (count: number) => `${count} ${count === 1 ? "routine" : "routines"}`,
+  nextIs: (name: string, when: string) => ` · next: ${name} ${when}`,
+  newRoutine: "New routine",
+  limitNotice: (agent: string, until: string) =>
+    `${agent} is at its usage limit${until}. Routines with automatic switch run on the other agent; the rest wait.`,
+  limitUntil: (when: string) => ` until ${when}`,
+  staleData: (error: string) => `Could not refresh right now (${error}). Showing the last known state.`,
+  emptyTitle: "No routine scheduled",
+  emptyWithRoot: "Create the first one with the button above: agent, days, time and prompt. At the scheduled time it runs on its own on this PC.",
+  emptyWithoutRoot: "Before the first routine, set the root folder in Settings. Agents only run inside it.",
+  openSettings: "Open Settings",
+  paused: "Paused",
+  next: "Next",
+  last: "Last",
+  noDayMarked: "no day marked",
+  routinePaused: "routine paused",
+  neverRan: "never ran",
+  cancelRun: "Cancel run",
+  runNow: "Run now",
+  history: "History",
+  edit: "Edit",
+  deleteNamed: (name: string) => `Delete ${name}`,
+  deleteRoutine: "Delete routine",
+  confirmDelete: (name: string) => `Delete the routine "${name}"? Its history will be deleted too.`,
+  noRunsYet: "This routine has not run yet.",
+  viewOutput: "View output",
+  editRoutine: "Edit routine",
+  vName: "Give the routine a name.",
+  vDirectory: "Choose the directory.",
+  vDays: "Choose at least one day.",
+  vTime: "Enter the time as HH:MM.",
+  vCommand: "Write the command.",
+  vPrompt: "Write the prompt.",
+  needRootToSave: "Set the root folder in Settings to save the routine.",
+  saving: "Saving…",
+  saveRoutine: "Save routine",
+  modalIntro: "You choose who runs it, when and what to do. At the scheduled time it runs on its own on this PC, without asking for permission.",
+  routineName: "Routine name",
+  routineNamePlaceholder: "Weekly Google Ads summary",
+  stepExecutor: "01 · Choose who runs it",
+  executorSubtitle: { CLAUDE: "Anthropic", CODEX: "OpenAI", SCRIPT: "CLI command" },
+  executorAria: { CLAUDE: "Anthropic, Claude Code", CODEX: "OpenAI, Codex", SCRIPT: "Script, CLI command" },
+  selected: "Selected",
+  select: "Select",
+  model: "Model",
+  cliDefault: "CLI default",
+  effort: "Effort",
+  effortTitle: "More effort may take more time and quota.",
+  stepWhen: "02 · When it runs",
+  timeMode: "Time mode",
+  fixedTime: "Fixed time",
+  everyInterval: "Every interval",
+  weekDays: "Days of the week",
+  every: "Every",
+  time: "Time",
+  intervalHint: "Runs on the interval's round minutes (for example 00, 15, 30 and 45) on the marked days. If the PC is off at one of them, the routine waits for the next.",
+  stepCommand: "03 · Command",
+  commandPlaceholder: "powershell -NoProfile -ExecutionPolicy Bypass -File run.ps1",
+  commandHint:
+    "One line, as you would type it in cmd. Runs in the chosen directory, without a window, and whatever the command prints goes to the log. An exit code other than 0 counts as a failure, with no retry, and triggers the e-mail alert.",
+  stepPrompt: "03 · Write the prompt",
+  promptHint:
+    "The agent runs without asking for permission, inside the chosen directory. If the routine publishes or sends something, ask it to check whether it already did so today: a retry runs the whole prompt again.",
+  stepDirectory: "04 · Working directory",
+  configureRoot: "Set the root folder in Settings",
+  rootSuffix: "(root folder)",
+  runSettings: "Run settings",
+  missedNext: "next slot",
+  missedRunOnBoot: "runs at boot",
+  missedSkip: "skips if off",
+  timeout: "Time limit",
+  minutes: (n: number) => `${n} min`,
+  ifPcOff: "If the PC is off",
+  runOnBootAfter: (n: number) => `Run at boot, after ${n} min`,
+  runOnBootNow: "Run as soon as it boots",
+  skipThisTime: "Skip this time",
+  fallbackLabel: "Switch agent when the usage limit is reached",
+  fallbackHint: "Off, the routine waits for the limit to reset and retries with the same agent.",
+  enabledLabel: "Routine enabled",
+  enabledHint: "Disabled, it does not run on schedule, but you can still run it now.",
+  runTitle: (id: string) => `Run #${id}`,
+  attempt: (n: number) => `attempt ${n}`,
+  scheduledFor: "Scheduled",
+  startedAt: "Started",
+  duration: "Duration",
+  error: "Error",
+  agentOutput: "Agent output",
+  noOutputYet: "No output yet.",
+  hideLog: "Hide log",
+  showLog: "View log",
+  logTruncated: (size: string) => `Large log: showing only the last 2 MB of ${size}. The whole file is at the path below.`,
+  emptyLog: "Empty log.",
+  file: "File",
+  settingsSubtitle: "This PC's configuration",
+  rootAndAgents: "Root folder and agents",
+  rootFolder: "Root folder",
+  rootPlaceholder: "C:\\Users\\you\\Projects",
+  rootHint: "Agents only run inside this folder or its subfolders. A routine outside it fails without running.",
+  claudeBin: "Claude Code binary",
+  codexBin: "Codex binary",
+  maxParallel: "Runs at the same time",
+  bootDelay: "Delay after boot",
+  noDelay: "no delay",
+  bootDelayHint: "Applies to routines set to run at boot.",
+  mailAlerts: "E-mail alerts",
+  notifyEmail: "Alert e-mail",
+  notifyPlaceholder: "you@example.com",
+  sendTestMail: "Send test e-mail",
+  notifyHint: "When a routine fails, the alert arrives here. Empty, nobody is alerted.",
+  mailFrom: (from: string) => `Sender: ${from}.`,
+  smtpMissing: "SMTP is not configured on this PC: create the .env file from .env.example and restart the app.",
+  testMailSent: (to: string) => `Test e-mail sent to ${to}.`,
+  settingsSaved: "Settings saved.",
+  saveSettings: "Save settings",
+  scheduler: "Scheduler",
+  lastCheck: "Last check",
+  notRunYet: "not run yet",
+  runningNow: "Running now",
+  usageLimit: "Usage limit",
+  until: (when: string) => `until ${when}`,
+  noTime: "no time",
+  free: "free",
+  schedulerHint: "The scheduler checks the routines every 30 seconds while the PC is on and the app is running.",
+  passwordSection: "Password",
+  currentPassword: "Current password",
+  newPassword: "New password",
+  confirmNewPassword: "Confirm new password",
+  confirmationMismatch: "The confirmation does not match the new password.",
+  passwordChanged: "Password changed. Other sessions were signed out.",
+  changePassword: "Change password",
+  session: "Session",
+  sessionHint: "Signs out of this browser only. Routines keep running.",
+  languageHint: "Applies to the panel, to the run notes and to the alert e-mail.",
+  dayShort: ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"],
+  everyDay: "Every day",
+  weekdays: "Mon to Fri",
+  weekend: "Weekend",
+  noDay: "no day",
+  atTime: (days: string, time: string) => `${days} at ${time}`,
+  everyN: (interval: string, days: string) => `every ${interval}, ${days}`,
+  noDate: "no date",
+  lessThanMinute: "less than 1 min",
+  inAmount: (amount: string) => `in ${amount}`,
+  agoAmount: (amount: string) => `${amount} ago`,
+  notStarted: "not started",
+  hours: (n: number) => `${n} h`,
+  days: (n: number) => `${n} d`
+};
+
+const MESSAGES: Record<Language, Messages> = { pt, en };
+
+function readStored(): Language | null {
+  try {
+    const value = localStorage.getItem(STORAGE_KEY);
+    return value === "pt" || value === "en" ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Idioma inicial: o escolhido antes, senao o do navegador (pt para quem navega em portugues, en para o resto). */
+export function initialLanguage(): Language {
+  return readStored() ?? (navigator.language.toLowerCase().startsWith("pt") ? "pt" : "en");
+}
+
+let currentLanguage: Language = initialLanguage();
+
+/** O que `apiRequest` manda no Accept-Language, sem depender do React. */
+export function getLanguage(): Language {
+  return currentLanguage;
+}
+
+export function messages(language: Language): Messages {
+  return MESSAGES[language];
+}
+
+function applyToDocument(language: Language): void {
+  currentLanguage = language;
+  document.documentElement.lang = LOCALE[language];
+  try {
+    localStorage.setItem(STORAGE_KEY, language);
+  } catch {
+    // sem localStorage (modo privado, por exemplo) a escolha vale so ate recarregar
+  }
+}
+
+interface I18nContextValue {
+  language: Language;
+  m: Messages;
+  setLanguage: (language: Language) => void;
+}
+
+const I18nContext = createContext<I18nContextValue | null>(null);
+
+export function I18nProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguageState] = useState<Language>(() => {
+    applyToDocument(currentLanguage);
+    return currentLanguage;
+  });
+  const setLanguage = useCallback((next: Language) => {
+    applyToDocument(next);
+    setLanguageState(next);
+  }, []);
+  const value = useMemo(() => ({ language, m: MESSAGES[language], setLanguage }), [language, setLanguage]);
+  return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
+}
+
+export function useI18n(): I18nContextValue {
+  const context = useContext(I18nContext);
+  if (!context) throw new Error("useI18n fora do I18nProvider");
+  return context;
+}

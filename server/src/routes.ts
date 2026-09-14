@@ -32,17 +32,18 @@ import {
 } from "./auth";
 import type { Db } from "./db";
 import { checkDirectory, listDirectories } from "./directories";
+import { DEFAULT_LANGUAGE, LANGUAGES, LocalizedError, messages, type Language, type Messages, type TextKey } from "./i18n";
 import { MailError, type Mailer } from "./mailer";
 import { buildTestEmail } from "./notifier";
 import { createRoutine, deleteRoutine, getRun, listRoutines, listRuns, NotFoundError, updateRoutine, type RoutineInput } from "./routines";
 import type { Scheduler } from "./scheduler";
 import { getMeta, readSettings, writeSettings } from "./settings";
 
-export class ValidationError extends Error {
+export class ValidationError extends LocalizedError {
   readonly details: unknown;
 
-  constructor(message: string, details?: unknown) {
-    super(message);
+  constructor(key: TextKey, details?: unknown) {
+    super(key);
     this.details = details;
   }
 }
@@ -52,58 +53,72 @@ const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
 const BIN_PATTERN = /^[^"&|<>^%!\r\n]+$/;
 export const LOG_MAX_BYTES = 2 * 1024 * 1024;
 
-const passwordField = z
-  .string()
-  .min(MIN_PASSWORD_LENGTH, `A senha precisa de pelo menos ${MIN_PASSWORD_LENGTH} caracteres.`)
-  .max(200);
+function passwordFieldFor(m: Messages) {
+  return z.string().min(MIN_PASSWORD_LENGTH, m.passwordTooShort(MIN_PASSWORD_LENGTH)).max(200);
+}
 
 /**
  * Um schema para os tres executores. Script: `command` obrigatorio, prompt/modelo/effort/fallback ignorados e
  * normalizados. Agente: prompt obrigatorio, effort e modelo da lista, `command` vazio. Intervalo vale para os dois.
+ * As mensagens saem no idioma pedido; a regra e uma so.
  */
-export const routineSchema = z
-  .object({
-    name: z.string().trim().min(1, "Dê um nome para a rotina.").max(80),
-    agentKind: z.enum(EXECUTOR_KINDS),
-    directory: z.string().min(1, "Escolha o diretório.").max(1000),
-    model: z.string().min(1).max(100).nullable(),
-    effort: z.string().max(20),
-    timeoutMinutes: z.number().int().min(1).max(TIMEOUT_CEILING_MINUTES),
-    isFallbackEnabled: z.boolean(),
-    days: z
-      .array(z.number().int().min(0).max(6))
-      .min(1, "Escolha pelo menos um dia.")
-      .max(7)
-      .refine((days) => new Set(days).size === days.length, { message: "Dias repetidos." }),
-    time: z.string().regex(TIME_PATTERN, "Hora inválida: use HH:MM entre 00:00 e 23:59."),
-    intervalMinutes: z
-      .number()
-      .int()
-      .nullable()
-      .refine((value) => value === null || (INTERVAL_OPTIONS_MINUTES as readonly number[]).includes(value), {
-        message: "Intervalo fora da lista."
-      }),
-    prompt: z.string().max(20_000),
-    command: z.string().max(COMMAND_MAX_CHARS, `O comando tem no máximo ${COMMAND_MAX_CHARS} caracteres.`),
-    missedPolicy: z.enum(["SKIP", "RUN_ON_BOOT"]),
-    isEnabled: z.boolean()
-  })
-  .superRefine((value, ctx) => {
-    if (value.agentKind === "SCRIPT") {
-      if (!value.command.trim()) ctx.addIssue({ code: "custom", path: ["command"], message: "Escreva o comando." });
-      if (/[\r\n]/.test(value.command)) ctx.addIssue({ code: "custom", path: ["command"], message: "O comando é uma linha só." });
-      if (value.model !== null) ctx.addIssue({ code: "custom", path: ["model"], message: "Script não tem modelo." });
-      return;
-    }
-    if (value.command.trim()) ctx.addIssue({ code: "custom", path: ["command"], message: "Só rotina de script tem comando." });
-    if (!value.prompt.trim()) ctx.addIssue({ code: "custom", path: ["prompt"], message: "Escreva o prompt." });
-    if (!EFFORTS_BY_KIND[value.agentKind].includes(value.effort)) {
-      ctx.addIssue({ code: "custom", path: ["effort"], message: "Esse effort não existe para o agente escolhido." });
-    }
-    if (value.model !== null && !MODELS_BY_KIND[value.agentKind].some((option) => option.value === value.model)) {
-      ctx.addIssue({ code: "custom", path: ["model"], message: "Esse modelo não existe para o agente escolhido." });
-    }
-  });
+function buildRoutineSchema(m: Messages) {
+  return z
+    .object({
+      name: z.string().trim().min(1, m.nameRequired).max(80),
+      agentKind: z.enum(EXECUTOR_KINDS),
+      directory: z.string().min(1, m.directoryRequired).max(1000),
+      model: z.string().min(1).max(100).nullable(),
+      effort: z.string().max(20),
+      timeoutMinutes: z.number().int().min(1).max(TIMEOUT_CEILING_MINUTES),
+      isFallbackEnabled: z.boolean(),
+      days: z
+        .array(z.number().int().min(0).max(6))
+        .min(1, m.daysRequired)
+        .max(7)
+        .refine((days) => new Set(days).size === days.length, { message: m.daysRepeated }),
+      time: z.string().regex(TIME_PATTERN, m.timeInvalid),
+      intervalMinutes: z
+        .number()
+        .int()
+        .nullable()
+        .refine((value) => value === null || (INTERVAL_OPTIONS_MINUTES as readonly number[]).includes(value), {
+          message: m.intervalInvalid
+        }),
+      prompt: z.string().max(20_000),
+      command: z.string().max(COMMAND_MAX_CHARS, m.commandTooLong(COMMAND_MAX_CHARS)),
+      missedPolicy: z.enum(["SKIP", "RUN_ON_BOOT"]),
+      isEnabled: z.boolean()
+    })
+    .superRefine((value, ctx) => {
+      if (value.agentKind === "SCRIPT") {
+        if (!value.command.trim()) ctx.addIssue({ code: "custom", path: ["command"], message: m.commandRequired });
+        if (/[\r\n]/.test(value.command)) ctx.addIssue({ code: "custom", path: ["command"], message: m.commandOneLine });
+        if (value.model !== null) ctx.addIssue({ code: "custom", path: ["model"], message: m.scriptHasNoModel });
+        return;
+      }
+      if (value.command.trim()) ctx.addIssue({ code: "custom", path: ["command"], message: m.onlyScriptHasCommand });
+      if (!value.prompt.trim()) ctx.addIssue({ code: "custom", path: ["prompt"], message: m.promptRequired });
+      if (!EFFORTS_BY_KIND[value.agentKind].includes(value.effort)) {
+        ctx.addIssue({ code: "custom", path: ["effort"], message: m.effortUnknown });
+      }
+      if (value.model !== null && !MODELS_BY_KIND[value.agentKind].some((option) => option.value === value.model)) {
+        ctx.addIssue({ code: "custom", path: ["model"], message: m.modelUnknown });
+      }
+    });
+}
+
+const ROUTINE_SCHEMAS = Object.fromEntries(LANGUAGES.map((language) => [language, buildRoutineSchema(messages(language))])) as Record<
+  Language,
+  ReturnType<typeof buildRoutineSchema>
+>;
+
+/** O schema em portugues, para o CLI, a importacao e os testes; as rotas pegam o do idioma do painel. */
+export const routineSchema = ROUTINE_SCHEMAS[DEFAULT_LANGUAGE];
+
+export function routineSchemaFor(language: Language) {
+  return ROUTINE_SCHEMAS[language];
+}
 
 /** O que vai para o banco: script sem resquício de agente, agente sem comando. */
 export function normalizeRoutine(input: z.infer<typeof routineSchema>): RoutineInput {
@@ -113,18 +128,25 @@ export function normalizeRoutine(input: z.infer<typeof routineSchema>): RoutineI
   return { ...input, command: null };
 }
 
-const binField = z.string().trim().min(1).max(260).regex(BIN_PATTERN, "Caminho do binário com caractere não permitido.");
+function settingsSchemaFor(m: Messages) {
+  const binField = z.string().trim().min(1).max(260).regex(BIN_PATTERN, m.binInvalid);
+  return z.object({
+    rootDirectory: z.string().max(1000),
+    claudeBin: binField,
+    codexBin: binField,
+    maxParallel: z.number().int().min(1).max(10),
+    bootDelayMinutes: z.number().int().min(0).max(120),
+    notifyEmail: z.string().trim().pipe(z.union([z.literal(""), z.email(m.notifyEmailInvalid).max(254)])),
+    // Opcional: o painel manda o idioma junto com o resto; quem nao manda nao muda o que esta salvo.
+    language: z.enum(LANGUAGES, { error: m.languageInvalid }).optional()
+  });
+}
 
-const settingsSchema = z.object({
-  rootDirectory: z.string().max(1000),
-  claudeBin: binField,
-  codexBin: binField,
-  maxParallel: z.number().int().min(1).max(10),
-  bootDelayMinutes: z.number().int().min(0).max(120),
-  notifyEmail: z.string().trim().pipe(z.union([z.literal(""), z.email("E-mail de aviso inválido.").max(254)]))
-});
+function changePasswordSchemaFor(m: Messages) {
+  return z.object({ currentPassword: z.string().min(1).max(200), newPassword: passwordFieldFor(m) });
+}
 
-const changePasswordSchema = z.object({ currentPassword: z.string().min(1).max(200), newPassword: passwordField });
+const languageSchema = z.object({ language: z.enum(LANGUAGES) });
 const idSchema = z.coerce.number().int().positive();
 const runsQuerySchema = z.object({
   beforeId: z.coerce.number().int().positive().optional(),
@@ -133,13 +155,13 @@ const runsQuerySchema = z.object({
 
 function parse<T>(schema: z.ZodType<T>, value: unknown): T {
   const result = schema.safeParse(value);
-  if (!result.success) throw new ValidationError("Dados inválidos.", z.flattenError(result.error));
+  if (!result.success) throw new ValidationError("invalidData", z.flattenError(result.error));
   return result.data;
 }
 
 function parseId(value: string | undefined): number {
   const result = idSchema.safeParse(value);
-  if (!result.success) throw new NotFoundError("Não encontrado.");
+  if (!result.success) throw new NotFoundError("notFound");
   return result.data;
 }
 
@@ -186,9 +208,10 @@ export function createPublicRouter({ db, now }: { db: Db; now: () => number }): 
   });
 
   router.post("/setup", (req, res) => {
-    const { password } = parse(z.object({ password: passwordField }), req.body);
+    const m = messages(req.language);
+    const { password } = parse(z.object({ password: passwordFieldFor(m) }), req.body);
     if (getPasswordHash(db) !== null || !setupPassword(db, password)) {
-      res.status(409).json({ message: "A senha já foi criada. Entre com ela." });
+      res.status(409).json({ message: m.passwordAlreadySet });
       return;
     }
     setSessionCookie(res, createSession(db, now()));
@@ -199,18 +222,18 @@ export function createPublicRouter({ db, now }: { db: Db; now: () => number }): 
     const waitMs = limiter.retryAfterMs();
     if (waitMs > 0) {
       res.setHeader("Retry-After", String(Math.ceil(waitMs / 1000)));
-      res.status(429).json({ message: "Muitas tentativas. Espere um minuto e tente de novo." });
+      res.status(429).json({ message: messages(req.language).tooManyAttempts });
       return;
     }
     const { password } = parse(z.object({ password: z.string().min(1).max(200) }), req.body);
     const stored = getPasswordHash(db);
     if (stored === null) {
-      res.status(409).json({ message: "Crie a senha primeiro." });
+      res.status(409).json({ message: messages(req.language).createPasswordFirst });
       return;
     }
     if (!verifyPassword(password, stored)) {
       limiter.recordFailure();
-      res.status(401).json({ message: "Senha incorreta." });
+      res.status(401).json({ message: messages(req.language).wrongPassword });
       return;
     }
     limiter.reset();
@@ -239,15 +262,15 @@ export function createProtectedRouter({
 }): Router {
   const router = Router();
 
-  function parseRoutine(body: unknown): RoutineInput {
-    const input = normalizeRoutine(parse(routineSchema, body));
+  function parseRoutine(body: unknown, language: Language): RoutineInput {
+    const input = normalizeRoutine(parse(routineSchemaFor(language), body));
     const directory = checkDirectory(readSettings(db).rootDirectory, input.directory);
-    if (!directory.ok) throw new ValidationError(directory.reason, { fieldErrors: { directory: [directory.reason] } });
+    if (!directory.ok) throw new ValidationError(directory.reason, { fieldErrors: { directory: [messages(language)[directory.reason]] } });
     return { ...input, directory: directory.real };
   }
 
-  function findRoutine(id: number) {
-    return listRoutines(db, now(), readSettings(db).rootDirectory).find((routine) => routine.id === id) ?? null;
+  function findRoutine(id: number, language: Language) {
+    return listRoutines(db, now(), readSettings(db).rootDirectory, language).find((routine) => routine.id === id) ?? null;
   }
 
   router.post("/auth/logout", (req, res) => {
@@ -261,38 +284,43 @@ export function createProtectedRouter({
   });
 
   router.put("/settings", (req, res) => {
-    const input = parse(settingsSchema, req.body);
+    const input = parse(settingsSchemaFor(messages(req.language)), req.body);
     let rootDirectory = "";
     if (input.rootDirectory.trim()) {
       const root = checkDirectory(input.rootDirectory, input.rootDirectory);
-      if (!root.ok) throw new ValidationError(root.reason, { fieldErrors: { rootDirectory: [root.reason] } });
+      if (!root.ok) throw new ValidationError(root.reason, { fieldErrors: { rootDirectory: [messages(req.language)[root.reason]] } });
       rootDirectory = root.real;
     }
     writeSettings(db, { ...input, rootDirectory });
     res.json(settingsPayload(db, mailer));
   });
 
+  // O seletor do painel grava so o idioma: e o que as notas de execucao e o e-mail de aviso usam.
+  router.put("/settings/language", (req, res) => {
+    const { language } = parse(languageSchema, req.body);
+    writeSettings(db, { language });
+    res.json({ language });
+  });
+
   // Manda o e-mail de teste para o destinatario ja salvo: e o mesmo caminho do aviso de falha.
-  router.post("/settings/notify-test", async (_req, res) => {
-    const { notifyEmail } = readSettings(db);
-    if (!notifyEmail) throw new ValidationError("Cadastre e salve o e-mail de aviso antes de testar.");
-    if (!mailer.isConfigured) {
-      throw new ValidationError("SMTP não configurado neste PC: crie o arquivo .env a partir do .env.example e reinicie o app.");
-    }
+  router.post("/settings/notify-test", async (req, res) => {
+    const { notifyEmail, language } = readSettings(db);
+    if (!notifyEmail) throw new ValidationError("notifyEmailMissing");
+    if (!mailer.isConfigured) throw new ValidationError("smtpNotConfigured");
     try {
-      await mailer.send({ to: notifyEmail, ...buildTestEmail(panelUrl) });
+      await mailer.send({ to: notifyEmail, ...buildTestEmail(panelUrl, language) });
     } catch (error) {
-      res.status(502).json({ message: error instanceof MailError ? error.message : "Falha ao enviar o e-mail." });
+      res.status(502).json({ message: error instanceof MailError ? error.message : messages(req.language).mailSendFailed });
       return;
     }
     res.json({ sentTo: notifyEmail });
   });
 
   router.put("/settings/password", (req, res) => {
-    const { currentPassword, newPassword } = parse(changePasswordSchema, req.body);
+    const { currentPassword, newPassword } = parse(changePasswordSchemaFor(messages(req.language)), req.body);
     const stored = getPasswordHash(db);
     if (stored === null || !verifyPassword(currentPassword, stored)) {
-      throw new ValidationError("Senha atual incorreta.", { fieldErrors: { currentPassword: ["Senha atual incorreta."] } });
+      throw new ValidationError("currentPasswordWrong", { fieldErrors: { currentPassword: [messages(req.language).currentPasswordWrong] } });
     }
     changePassword(db, newPassword);
     deleteOtherSessions(db, readSessionToken(req));
@@ -304,19 +332,19 @@ export function createProtectedRouter({
     res.json({ rootDirectory, directories: listDirectories(rootDirectory) });
   });
 
-  router.get("/routines", (_req, res) => {
-    res.json({ routines: listRoutines(db, now(), readSettings(db).rootDirectory) });
+  router.get("/routines", (req, res) => {
+    res.json({ routines: listRoutines(db, now(), readSettings(db).rootDirectory, req.language) });
   });
 
   router.post("/routines", (req, res) => {
-    const id = createRoutine(db, parseRoutine(req.body), now());
-    res.status(201).json({ routine: findRoutine(id) });
+    const id = createRoutine(db, parseRoutine(req.body, req.language), now());
+    res.status(201).json({ routine: findRoutine(id, req.language) });
   });
 
   router.put("/routines/:id", (req, res) => {
     const id = parseId(req.params.id);
-    updateRoutine(db, id, parseRoutine(req.body), now());
-    res.json({ routine: findRoutine(id) });
+    updateRoutine(db, id, parseRoutine(req.body, req.language), now());
+    res.json({ routine: findRoutine(id, req.language) });
   });
 
   router.delete("/routines/:id", (req, res) => {
@@ -338,7 +366,7 @@ export function createProtectedRouter({
 
   router.get("/runs/:id", (req, res) => {
     const run = getRun(db, parseId(req.params.id));
-    if (!run) throw new NotFoundError("Execução não encontrada.");
+    if (!run) throw new NotFoundError("runNotFound");
     const logFile = path.join(logsDir, `${run.id}.log`);
     res.json({ run, logFile, ...readLogTail(logFile) });
   });

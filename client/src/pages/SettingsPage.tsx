@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
-import { Activity, FolderTree, KeyRound, LogOut, Mail, Send } from "lucide-react";
+import { Activity, FolderTree, KeyRound, Languages, LogOut, Mail, Send } from "lucide-react";
 
+import { LanguageSwitch } from "../components/LanguageSwitch";
 import { PageHeader } from "../components/PageHeader";
 import { Badge, Button, Card, ErrorBox, Input, Label, Select, Skeleton, Spinner } from "../components/ui";
+import { useI18n } from "../i18n";
 import { apiRequest, formatApiError } from "../lib/api";
-import { AGENT_LABEL, formatDateTime, formatRelative } from "../lib/format";
+import { useFormat } from "../lib/format";
 import type { AgentKind, MailMeta, SettingsDto, SettingsResponse, StatusDto } from "../types";
 
 const PARALLEL_OPTIONS = [1, 2, 3, 4, 5, 6, 8, 10];
@@ -14,6 +16,8 @@ const EMPTY_PASSWORDS = { currentPassword: "", newPassword: "", confirmPassword:
 type FormState = { kind: "idle" } | { kind: "saving" } | { kind: "saved"; message: string } | { kind: "error"; message: string };
 
 export function SettingsPage({ onLogout }: { onLogout: () => void }) {
+  const { m, language } = useI18n();
+  const f = useFormat();
   const baseId = useId();
   const [form, setForm] = useState<SettingsDto | null>(null);
   const [mail, setMail] = useState<MailMeta | null>(null);
@@ -51,14 +55,15 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
     setSettingsState({ kind: "idle" });
   }
 
+  // O idioma sai do seletor (que ja gravou no servidor), nunca do formulario: salvar Ajustes nao o desfaz.
   async function persistSettings(): Promise<boolean> {
     if (!form) return false;
     setSettingsState({ kind: "saving" });
     try {
-      const data = await apiRequest<SettingsResponse>("/api/settings", { method: "PUT", body: form });
+      const data = await apiRequest<SettingsResponse>("/api/settings", { method: "PUT", body: { ...form, language } });
       setForm(data.settings);
       setMail(data.mail);
-      setSettingsState({ kind: "saved", message: "Ajustes salvos." });
+      setSettingsState({ kind: "saved", message: m.settingsSaved });
       return true;
     } catch (error) {
       setSettingsState({ kind: "error", message: formatApiError(error) });
@@ -80,7 +85,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
     }
     try {
       const data = await apiRequest<{ sentTo: string }>("/api/settings/notify-test", { method: "POST" });
-      setMailTestState({ kind: "saved", message: `E-mail de teste enviado para ${data.sentTo}.` });
+      setMailTestState({ kind: "saved", message: m.testMailSent(data.sentTo) });
     } catch (error) {
       setMailTestState({ kind: "error", message: formatApiError(error) });
     }
@@ -89,7 +94,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
   async function changePassword(event: FormEvent) {
     event.preventDefault();
     if (passwords.newPassword !== passwords.confirmPassword) {
-      setPasswordState({ kind: "error", message: "A confirmação não confere com a nova senha." });
+      setPasswordState({ kind: "error", message: m.confirmationMismatch });
       return;
     }
     setPasswordState({ kind: "saving" });
@@ -99,7 +104,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
         body: { currentPassword: passwords.currentPassword, newPassword: passwords.newPassword }
       });
       setPasswords(EMPTY_PASSWORDS);
-      setPasswordState({ kind: "saved", message: "Senha trocada. As outras sessões foram encerradas." });
+      setPasswordState({ kind: "saved", message: m.passwordChanged });
     } catch (error) {
       setPasswordState({ kind: "error", message: formatApiError(error) });
     }
@@ -109,12 +114,12 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
 
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title="Ajustes" subtitle="Configuração deste PC" />
+      <PageHeader title={m.navSettings} subtitle={m.settingsSubtitle} />
       <div className="flex-1 overflow-y-auto p-3 pb-24 md:pb-3">
         <div className="mx-auto max-w-2xl space-y-4">
           <Card className="p-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-fg)]">
-              <FolderTree aria-hidden className="size-4 text-[var(--color-primary)]" /> Pasta mãe e agentes
+              <FolderTree aria-hidden className="size-4 text-[var(--color-primary)]" /> {m.rootAndAgents}
             </h2>
 
             {form === null ? (
@@ -122,7 +127,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
                 <div className="mt-3 space-y-2">
                   <ErrorBox>{loadError}</ErrorBox>
                   <Button size="sm" variant="outline" onClick={loadSettings}>
-                    Tentar de novo
+                    {m.retry}
                   </Button>
                 </div>
               ) : (
@@ -135,32 +140,30 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
             ) : (
               <form className="mt-3 space-y-3" onSubmit={saveSettings}>
                 <div>
-                  <Label htmlFor={fieldId("root")}>Pasta mãe</Label>
+                  <Label htmlFor={fieldId("root")}>{m.rootFolder}</Label>
                   <Input
                     id={fieldId("root")}
                     value={form.rootDirectory}
-                    placeholder="C:\Users\voce\Projetos"
+                    placeholder={m.rootPlaceholder}
                     onChange={(event) => updateForm({ rootDirectory: event.target.value })}
                   />
-                  <p className="mt-1 text-[11px] text-[var(--color-fg-subtle)]">
-                    Os agentes só rodam dentro desta pasta ou das subpastas dela. Rotina fora dela falha sem executar.
-                  </p>
+                  <p className="mt-1 text-[11px] text-[var(--color-fg-subtle)]">{m.rootHint}</p>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor={fieldId("claude")}>Binário do Claude Code</Label>
+                    <Label htmlFor={fieldId("claude")}>{m.claudeBin}</Label>
                     <Input id={fieldId("claude")} value={form.claudeBin} onChange={(event) => updateForm({ claudeBin: event.target.value })} />
                   </div>
                   <div>
-                    <Label htmlFor={fieldId("codex")}>Binário do Codex</Label>
+                    <Label htmlFor={fieldId("codex")}>{m.codexBin}</Label>
                     <Input id={fieldId("codex")} value={form.codexBin} onChange={(event) => updateForm({ codexBin: event.target.value })} />
                   </div>
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div>
-                    <Label htmlFor={fieldId("parallel")}>Execuções ao mesmo tempo</Label>
+                    <Label htmlFor={fieldId("parallel")}>{m.maxParallel}</Label>
                     <Select
                       id={fieldId("parallel")}
                       value={String(form.maxParallel)}
@@ -174,7 +177,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
                     </Select>
                   </div>
                   <div>
-                    <Label htmlFor={fieldId("delay")}>Atraso ao ligar o PC</Label>
+                    <Label htmlFor={fieldId("delay")}>{m.bootDelay}</Label>
                     <Select
                       id={fieldId("delay")}
                       value={String(form.bootDelayMinutes)}
@@ -182,39 +185,36 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
                     >
                       {BOOT_DELAY_OPTIONS.map((minutes) => (
                         <option key={minutes} value={minutes}>
-                          {minutes === 0 ? "sem atraso" : `${minutes} min`}
+                          {minutes === 0 ? m.noDelay : m.minutes(minutes)}
                         </option>
                       ))}
                     </Select>
-                    <p className="mt-1 text-[11px] text-[var(--color-fg-subtle)]">Vale para as rotinas marcadas para executar ao ligar.</p>
+                    <p className="mt-1 text-[11px] text-[var(--color-fg-subtle)]">{m.bootDelayHint}</p>
                   </div>
                 </div>
 
                 <div className="border-t border-[var(--color-border)] pt-3">
                   <h3 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-fg)]">
-                    <Mail aria-hidden className="size-4 text-[var(--color-primary)]" /> Avisos por e-mail
+                    <Mail aria-hidden className="size-4 text-[var(--color-primary)]" /> {m.mailAlerts}
                   </h3>
                   <div className="mt-3 grid gap-3 sm:grid-cols-[1fr_auto] sm:items-end">
                     <div>
-                      <Label htmlFor={fieldId("notify")}>E-mail de aviso</Label>
+                      <Label htmlFor={fieldId("notify")}>{m.notifyEmail}</Label>
                       <Input
                         id={fieldId("notify")}
                         type="email"
                         autoComplete="email"
-                        placeholder="voce@exemplo.com"
+                        placeholder={m.notifyPlaceholder}
                         value={form.notifyEmail}
                         onChange={(event) => updateForm({ notifyEmail: event.target.value })}
                       />
                     </div>
                     <Button type="button" variant="outline" onClick={() => void sendTestMail()} disabled={mailTestState.kind === "saving" || !form.notifyEmail.trim()}>
-                      {mailTestState.kind === "saving" ? <Spinner className="size-4" /> : <Send aria-hidden className="size-4" />} Enviar e-mail de teste
+                      {mailTestState.kind === "saving" ? <Spinner className="size-4" /> : <Send aria-hidden className="size-4" />} {m.sendTestMail}
                     </Button>
                   </div>
                   <p className="mt-1 text-[11px] text-[var(--color-fg-subtle)]">
-                    Quando uma rotina falhar, o aviso chega aqui. Vazio, ninguém é avisado.{" "}
-                    {mail?.isConfigured
-                      ? `Remetente: ${mail.from}.`
-                      : "SMTP não configurado neste PC: crie o arquivo .env a partir do .env.example e reinicie o app."}
+                    {m.notifyHint} {mail?.isConfigured ? m.mailFrom(mail.from) : m.smtpMissing}
                   </p>
                   {mailTestState.kind === "error" && (
                     <div className="mt-2">
@@ -236,7 +236,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
                     </span>
                   )}
                   <Button type="submit" disabled={settingsState.kind === "saving"}>
-                    {settingsState.kind === "saving" && <Spinner className="size-4" />} Salvar ajustes
+                    {settingsState.kind === "saving" && <Spinner className="size-4" />} {m.saveSettings}
                   </Button>
                 </div>
               </form>
@@ -245,29 +245,26 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
 
           <Card className="p-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-fg)]">
-              <Activity aria-hidden className="size-4 text-[var(--color-primary)]" /> Agendador
+              <Activity aria-hidden className="size-4 text-[var(--color-primary)]" /> {m.scheduler}
             </h2>
             {status ? (
               <dl className="mt-3 grid gap-3 text-xs sm:grid-cols-3">
                 <div>
-                  <dt className="text-[var(--color-fg-subtle)]">Última verificação</dt>
-                  <dd className="mt-0.5 text-[var(--color-fg)]">
-                    {status.lastTickAt ? formatRelative(status.lastTickAt, status.now) : "ainda não rodou"}
-                  </dd>
+                  <dt className="text-[var(--color-fg-subtle)]">{m.lastCheck}</dt>
+                  <dd className="mt-0.5 text-[var(--color-fg)]">{status.lastTickAt ? f.formatRelative(status.lastTickAt, status.now) : m.notRunYet}</dd>
                 </div>
                 <div>
-                  <dt className="text-[var(--color-fg-subtle)]">Executando agora</dt>
+                  <dt className="text-[var(--color-fg-subtle)]">{m.runningNow}</dt>
                   <dd className="tabular mt-0.5 text-[var(--color-fg)]">{status.runningCount}</dd>
                 </div>
                 <div>
-                  <dt className="text-[var(--color-fg-subtle)]">Limite de uso</dt>
+                  <dt className="text-[var(--color-fg-subtle)]">{m.usageLimit}</dt>
                   <dd className="mt-1 flex flex-wrap gap-1.5">
                     {(["CLAUDE", "CODEX"] as AgentKind[]).map((kind) => {
                       const limit = status.limits[kind];
                       return (
                         <Badge key={kind} tone={limit.isOnLimit ? "warning" : "success"}>
-                          {AGENT_LABEL[kind]}:{" "}
-                          {limit.isOnLimit ? `até ${limit.resetAt ? formatDateTime(Date.parse(limit.resetAt)) : "sem horário"}` : "livre"}
+                          {f.agentLabel[kind]}: {limit.isOnLimit ? m.until(limit.resetAt ? f.formatDateTime(Date.parse(limit.resetAt)) : m.noTime) : m.free}
                         </Badge>
                       );
                     })}
@@ -277,19 +274,27 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
             ) : (
               <Skeleton className="mt-3 h-12" />
             )}
-            <p className="mt-3 text-[11px] text-[var(--color-fg-subtle)]">
-              O agendador confere as rotinas a cada 30 segundos enquanto o PC está ligado e o app está rodando.
-            </p>
+            <p className="mt-3 text-[11px] text-[var(--color-fg-subtle)]">{m.schedulerHint}</p>
+          </Card>
+
+          <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div>
+              <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-fg)]">
+                <Languages aria-hidden className="size-4 text-[var(--color-primary)]" /> {m.language}
+              </h2>
+              <p className="text-xs text-[var(--color-fg-subtle)]">{m.languageHint}</p>
+            </div>
+            <LanguageSwitch isAuthenticated />
           </Card>
 
           <Card className="p-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-fg)]">
-              <KeyRound aria-hidden className="size-4 text-[var(--color-primary)]" /> Senha
+              <KeyRound aria-hidden className="size-4 text-[var(--color-primary)]" /> {m.passwordSection}
             </h2>
             <form className="mt-3 space-y-3" onSubmit={changePassword}>
               <div className="grid gap-3 sm:grid-cols-3">
                 <div>
-                  <Label htmlFor={fieldId("current")}>Senha atual</Label>
+                  <Label htmlFor={fieldId("current")}>{m.currentPassword}</Label>
                   <Input
                     id={fieldId("current")}
                     type="password"
@@ -300,7 +305,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor={fieldId("new")}>Nova senha</Label>
+                  <Label htmlFor={fieldId("new")}>{m.newPassword}</Label>
                   <Input
                     id={fieldId("new")}
                     type="password"
@@ -312,7 +317,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
                   />
                 </div>
                 <div>
-                  <Label htmlFor={fieldId("confirm")}>Confirmar nova senha</Label>
+                  <Label htmlFor={fieldId("confirm")}>{m.confirmNewPassword}</Label>
                   <Input
                     id={fieldId("confirm")}
                     type="password"
@@ -331,7 +336,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
                   </span>
                 )}
                 <Button type="submit" variant="outline" disabled={passwordState.kind === "saving"}>
-                  Trocar senha
+                  {m.changePassword}
                 </Button>
               </div>
             </form>
@@ -339,11 +344,11 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
 
           <Card className="flex flex-wrap items-center justify-between gap-3 p-4">
             <div>
-              <h2 className="text-sm font-semibold text-[var(--color-fg)]">Sessão</h2>
-              <p className="text-xs text-[var(--color-fg-subtle)]">Sai só deste navegador. As rotinas continuam rodando.</p>
+              <h2 className="text-sm font-semibold text-[var(--color-fg)]">{m.session}</h2>
+              <p className="text-xs text-[var(--color-fg-subtle)]">{m.sessionHint}</p>
             </div>
             <Button variant="outline" onClick={onLogout}>
-              <LogOut aria-hidden className="size-4" /> Sair
+              <LogOut aria-hidden className="size-4" /> {m.logout}
             </Button>
           </Card>
         </div>

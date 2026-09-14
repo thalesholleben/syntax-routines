@@ -62,6 +62,7 @@ export interface SettingsDto {
   maxParallel: number;
   bootDelayMinutes: number;
   notifyEmail: string;
+  language: "pt" | "en";
 }
 
 export interface AgentsMeta {

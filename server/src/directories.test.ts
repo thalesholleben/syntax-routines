@@ -25,7 +25,7 @@ afterAll(() => {
 });
 
 const isAccepted = (dir: string) => checkDirectory(root, dir).ok;
-const OUTSIDE = { ok: false, reason: "Diretório fora da pasta mãe." };
+const OUTSIDE = { ok: false, reason: "dirOutsideRoot" };
 
 describe("checkDirectory", () => {
   it("aceita a raiz exata e descendentes", () => {
@@ -53,7 +53,7 @@ describe("checkDirectory", () => {
   it("rejeita pasta com % no caminho, que o cmd expandiria como variavel", () => {
     const percentRoot = path.join(base, "cem%porcento");
     mkdirSync(percentRoot);
-    expect(checkDirectory(percentRoot, percentRoot)).toEqual({ ok: false, reason: "Diretório com caractere não permitido (% ou aspas)." });
+    expect(checkDirectory(percentRoot, percentRoot)).toEqual({ ok: false, reason: "dirUnsafeChars" });
   });
 
   it("aceita subpasta cujo nome comeca com dois pontos", () => {
@@ -61,11 +61,11 @@ describe("checkDirectory", () => {
   });
 
   it("rejeita inexistente, outro drive, arquivo, caminho relativo e pasta mae vazia", () => {
-    expect(checkDirectory(root, path.join(root, "nao-existe"))).toEqual({ ok: false, reason: "Diretório não existe." });
+    expect(checkDirectory(root, path.join(root, "nao-existe"))).toEqual({ ok: false, reason: "dirNotFound" });
     expect(isAccepted("Z:\\inexistente")).toBe(false);
-    expect(checkDirectory(root, path.join(root, "arquivo.txt"))).toEqual({ ok: false, reason: "Diretório não é uma pasta." });
+    expect(checkDirectory(root, path.join(root, "arquivo.txt"))).toEqual({ ok: false, reason: "dirNotDirectory" });
     expect(isAccepted("sub")).toBe(false);
-    expect(checkDirectory("", root)).toEqual({ ok: false, reason: "Pasta mãe não configurada." });
+    expect(checkDirectory("", root)).toEqual({ ok: false, reason: "dirRootMissing" });
   });
 });
 

@@ -1,5 +1,7 @@
 import { useRef, type CSSProperties, type KeyboardEvent } from "react";
 
+import { useI18n } from "../i18n";
+
 /**
  * Esforco como chave de varios niveis, igual ao Ops: um trilho com uma parada por nivel e um botao que
  * desliza entre elas. Aceita toque, arraste e setas do teclado. Nao tem rotulo proprio: o nivel escolhido
@@ -18,6 +20,7 @@ export function EffortToggle({
   labelledBy: string;
   disabled?: boolean;
 }) {
+  const { m } = useI18n();
   const railRef = useRef<HTMLSpanElement>(null);
   const last = levels.length - 1;
   const index = Math.max(0, levels.indexOf(value));
@@ -60,7 +63,7 @@ export function EffortToggle({
       aria-valuenow={index}
       aria-valuetext={value}
       aria-disabled={disabled || undefined}
-      title="Mais esforço pode consumir mais tempo e cota."
+      title={m.effortTitle}
       data-slot="effort"
       data-top={index === last || undefined}
       style={{ "--ratio": ratio } as CSSProperties}
