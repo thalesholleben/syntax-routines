@@ -23,7 +23,7 @@ const UNPROTECT =
   "$plain = (New-Object System.Management.Automation.PSCredential('x', $secure)).GetNetworkCredential().Password; " +
   "[Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($plain))";
 
-function runPowerShell(script: string, input: string): Promise<string> {
+function runPowerShell(script: string, input: string, env: NodeJS.ProcessEnv): Promise<string> {
   return new Promise((resolve, reject) => {
     let isSettled = false;
     const settle = (error: Error | null, value = "") => {
@@ -35,7 +35,8 @@ function runPowerShell(script: string, input: string): Promise<string> {
     };
     const child = spawn("powershell.exe", ["-NoLogo", "-NoProfile", "-NonInteractive", "-Command", script], {
       windowsHide: true,
-      stdio: ["pipe", "pipe", "pipe"]
+      stdio: ["pipe", "pipe", "pipe"],
+      env
     });
     const timer = setTimeout(() => {
       child.kill();
@@ -54,14 +55,30 @@ function runPowerShell(script: string, input: string): Promise<string> {
   });
 }
 
-export const dpapiStore: SecretStore = {
-  async protect(plain) {
-    const blob = await runPowerShell(PROTECT, Buffer.from(plain, "utf8").toString("base64"));
-    if (!HEX.test(blob)) throw new Error("a DPAPI devolveu um formato inesperado");
-    return blob;
-  },
-  async unprotect(blob) {
-    if (!HEX.test(blob)) throw new Error("senha salva em formato inválido");
-    return Buffer.from(await runPowerShell(UNPROTECT, blob), "base64").toString("utf8");
-  }
-};
+/**
+ * Ambiente do PowerShell filho, sem o PSModulePath do pai. Quando o app sobe de um pwsh (PowerShell 7: terminal,
+ * step do CI, tarefa criada por ele), o filho herda o caminho de modulos do 7 e o Windows PowerShell 5.1 encontra
+ * o ConvertTo-SecureString la, mas nao consegue carregar o modulo: sai com codigo 1 e nada e cifrado. Sem a
+ * variavel, o 5.1 monta o caminho padrao dele e os cmdlets da DPAPI carregam de onde sempre carregaram.
+ */
+function childEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  return Object.fromEntries(Object.entries(env).filter(([key]) => key.toLowerCase() !== "psmodulepath"));
+}
+
+/** `env` e o ambiente do processo que chama; o teste passa um ambiente montado, com o PSModulePath do PowerShell 7. */
+export function createDpapiStore(processEnv: NodeJS.ProcessEnv = process.env): SecretStore {
+  const env = childEnv(processEnv);
+  return {
+    async protect(plain) {
+      const blob = await runPowerShell(PROTECT, Buffer.from(plain, "utf8").toString("base64"), env);
+      if (!HEX.test(blob)) throw new Error("a DPAPI devolveu um formato inesperado");
+      return blob;
+    },
+    async unprotect(blob) {
+      if (!HEX.test(blob)) throw new Error("senha salva em formato inválido");
+      return Buffer.from(await runPowerShell(UNPROTECT, blob, env), "base64").toString("utf8");
+    }
+  };
+}
+
+export const dpapiStore = createDpapiStore();
