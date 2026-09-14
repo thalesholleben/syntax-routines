@@ -139,7 +139,7 @@ html[data-js] .fx-reveal-group > * { transition-delay: calc(var(--fx-stagger, 90
 .lp-hero { padding-block: clamp(3rem, 7vw, 6rem) clamp(3rem, 8vw, 7rem); overflow: hidden; }
 .lp-hero .lp-wrap { position: relative; display: grid; gap: 44px; align-items: center; }
 .lp-hero__copy { position: relative; z-index: 2; max-width: 620px; }
-.lp-hero__copy h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(2.4rem, 6.2vw, 4.6rem); line-height: .98; letter-spacing: -.04em; }
+.lp-hero__copy h1 { font-family: var(--font-display); font-weight: 800; font-size: clamp(2.25rem, 4.4vw, 3.4rem); line-height: 1; letter-spacing: -.035em; }
 .lp-hero__copy h1 em { font-style: normal; color: var(--accent); }
 .lp-hero__lead { margin-top: 22px; max-width: 560px; font-size: clamp(1.05rem, 1.4vw, 1.2rem); line-height: 1.55; color: var(--ink); }
 .lp-hero__sub { margin-top: 12px; max-width: 540px; color: var(--muted); }
