@@ -124,7 +124,7 @@ export function App() {
         })}
         {/* Seletor de idioma discreto no pe do rail; no celular ele fica em Ajustes. */}
         <div className="hidden md:mt-auto md:flex md:justify-center">
-          <LanguageSwitch isAuthenticated />
+          <LanguageSwitch isAuthenticated orientation="vertical" />
         </div>
         <button
           type="button"
