@@ -31,6 +31,7 @@ let clock = 0;
 let runnerCalls = 0;
 let scriptCalls = 0;
 let sentMail: MailMessage[] = [];
+let mailRejectDetail: string | null = null;
 let isMailConfigured = true;
 
 // Runner que nunca termina: basta saber que o agente foi (ou nao foi) disparado.
@@ -48,7 +49,8 @@ const fakeMailer: Mailer = {
   },
   from: "avisos@example.com",
   async send(message) {
-    if (message.to.endsWith("@recusa.example")) throw new MailError("SMTP recusou o envio: 550 caixa inexistente");
+    if (message.to.endsWith("@recusa.example")) throw new MailError("smtpRejected", "550 caixa inexistente");
+    if (mailRejectDetail !== null) throw new MailError("smtpRejected", mailRejectDetail);
     sentMail.push(message);
   }
 };
@@ -63,6 +65,7 @@ beforeEach(async () => {
   runnerCalls = 0;
   scriptCalls = 0;
   sentMail = [];
+  mailRejectDetail = null;
   isMailConfigured = true;
   const now = () => clock;
   const logsDir = path.join(tmp, "logs");
@@ -415,6 +418,14 @@ describe("idioma", () => {
     expect(sentMail[0]).toMatchObject({ to: "dono@example.com", subject: "[Syntax Routines] Test e-mail" });
     // O PUT de ajustes sem `language` nao mexe no idioma salvo.
     expect((await request("GET", "/api/settings", { cookie })).body).toMatchObject({ settings: { language: "en" } });
+
+    // SMTP recusando: a falha chega ao painel no idioma pedido, com o detalhe ja sanitizado pelo mailer.
+    mailRejectDetail = "Invalid login: 535 AUTH [redacted]";
+    const rejected = await request("POST", "/api/settings/notify-test", { cookie, language: "en" });
+    expect(rejected.status).toBe(502);
+    expect(rejected.body).toEqual({ message: "SMTP rejected the message: Invalid login: 535 AUTH [redacted]" });
+    const rejectedPt = await request("POST", "/api/settings/notify-test", { cookie });
+    expect(rejectedPt.body).toEqual({ message: "SMTP recusou o envio: Invalid login: 535 AUTH [redacted]" });
   });
 });
 

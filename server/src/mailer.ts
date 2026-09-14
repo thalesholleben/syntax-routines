@@ -2,6 +2,8 @@
 // projeto). Quem decide se avisa e para quem e o agendador (destinatario em Ajustes); aqui so se envia.
 import nodemailer from "nodemailer";
 
+import { DEFAULT_LANGUAGE, messages, type Language } from "./i18n";
+
 export interface MailMessage {
   to: string;
   subject: string;
@@ -28,7 +30,22 @@ export interface MailTransport {
   }) => Promise<unknown>;
 }
 
-export class MailError extends Error {}
+/** Falha de envio que sabe se traduzir: `message` em portugues (log e CLI), `localized(lang)` para a API. */
+export class MailError extends Error {
+  readonly key: "smtpNotConfiguredEnv" | "smtpRejected";
+  readonly detail: string;
+
+  constructor(key: "smtpNotConfiguredEnv" | "smtpRejected", detail = "") {
+    super(key === "smtpRejected" ? messages(DEFAULT_LANGUAGE).smtpRejected(detail) : messages(DEFAULT_LANGUAGE).smtpNotConfiguredEnv);
+    this.key = key;
+    this.detail = detail;
+  }
+
+  localized(language: Language): string {
+    const m = messages(language);
+    return this.key === "smtpRejected" ? m.smtpRejected(this.detail) : m.smtpNotConfiguredEnv;
+  }
+}
 
 interface SmtpConfig {
   host: string;
@@ -96,7 +113,7 @@ export function createMailer(env: NodeJS.ProcessEnv = process.env, transport?: M
     isConfigured,
     from: config.fromEmail,
     async send(message) {
-      if (!isConfigured) throw new MailError("SMTP não configurado: defina MAIL_FROM_EMAIL, SMTP_USER e SMTP_PASS no .env.");
+      if (!isConfigured) throw new MailError("smtpNotConfiguredEnv");
       try {
         await getTransport().sendMail({
           from: { name: config.fromName, address: config.fromEmail },
@@ -106,7 +123,7 @@ export function createMailer(env: NodeJS.ProcessEnv = process.env, transport?: M
           html: message.html
         });
       } catch (error) {
-        throw new MailError(`SMTP recusou o envio: ${sanitizeSmtpError(error)}`);
+        throw new MailError("smtpRejected", sanitizeSmtpError(error));
       }
     }
   };

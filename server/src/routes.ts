@@ -310,7 +310,7 @@ export function createProtectedRouter({
     try {
       await mailer.send({ to: notifyEmail, ...buildTestEmail(panelUrl, language) });
     } catch (error) {
-      res.status(502).json({ message: error instanceof MailError ? error.message : messages(req.language).mailSendFailed });
+      res.status(502).json({ message: error instanceof MailError ? error.localized(req.language) : messages(req.language).mailSendFailed });
       return;
     }
     res.json({ sentTo: notifyEmail });

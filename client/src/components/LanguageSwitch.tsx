@@ -3,7 +3,6 @@ import { cn } from "../lib/cn";
 import { LANGUAGES, useI18n, type Language } from "../i18n";
 
 const LABEL: Record<Language, string> = { pt: "PT", en: "EN" };
-const NAME: Record<Language, string> = { pt: "Português", en: "English" };
 
 /**
  * Seletor discreto de idioma. Logado, grava tambem em Ajustes: e de la que o app tira o idioma das
@@ -26,8 +25,8 @@ export function LanguageSwitch({ isAuthenticated, className }: { isAuthenticated
           type="button"
           lang={option === "pt" ? "pt-BR" : "en"}
           aria-pressed={language === option}
-          aria-label={NAME[option]}
-          title={NAME[option]}
+          aria-label={m.languageName[option]}
+          title={m.languageName[option]}
           onClick={() => choose(option)}
           className={cn(
             "cursor-pointer rounded-full px-2 py-0.5 text-[11px] font-semibold tracking-wide transition-colors",
