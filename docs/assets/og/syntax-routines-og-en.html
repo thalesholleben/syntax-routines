@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Syntax Routines · Open Graph</title>
+    <!--
+      Imagem Open Graph (1280x640) da landing page, renderizada por `node scripts/render-og.mjs`
+      (this is the English version, `--en`; Portuguese: syntax-routines-og.html). Fundo: a arte do login do app
+      (public/brand/login-bg-desktop.webp), deslocada para o azul do Routines com hue-rotate.
+      Fontes: as mesmas da landing (site/fonts/).
+    -->
+    <style>
+      @font-face { font-family: "Montserrat"; font-weight: 800; src: url("../../../site/fonts/montserrat-latin-800-normal.woff2") format("woff2"); }
+      @font-face { font-family: "Montserrat"; font-weight: 500; src: url("../../../site/fonts/montserrat-latin-500-normal.woff2") format("woff2"); }
+      @font-face { font-family: "Montserrat"; font-weight: 600; src: url("../../../site/fonts/montserrat-latin-600-normal.woff2") format("woff2"); }
+      @font-face { font-family: "JetBrains Mono"; font-weight: 100 800; src: url("../../../site/fonts/jetbrains-mono-100-800-normal-latin.woff2") format("woff2"); }
+
+      * { box-sizing: border-box; }
+      html, body { width: 1280px; height: 640px; margin: 0; overflow: hidden; background: #0a0a0a; }
+
+      .og-card {
+        position: relative; isolation: isolate;
+        width: 1280px; height: 640px; overflow: hidden;
+        color: #f3f3f0; background: #0a0a0a;
+        font-family: "Montserrat", Arial, sans-serif;
+      }
+      .og-card__visual, .og-card__shade, .og-card__mesh, .og-card__glow { position: absolute; inset: 0; }
+      .og-card__visual {
+        z-index: -4; width: 100%; height: 100%; object-fit: cover; object-position: center 40%;
+        filter: hue-rotate(128deg) saturate(.75) brightness(.9);
+      }
+      .og-card__shade {
+        z-index: -3;
+        background:
+          linear-gradient(90deg, rgba(10, 10, 10, .99) 0%, rgba(10, 10, 10, .96) 34%, rgba(10, 10, 10, .78) 52%, rgba(10, 10, 10, .18) 80%),
+          linear-gradient(0deg, rgba(10, 10, 10, .8) 0%, transparent 32%);
+      }
+      .og-card__mesh {
+        z-index: -2; opacity: .18;
+        background-image:
+          linear-gradient(rgba(30, 157, 200, .14) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(30, 157, 200, .14) 1px, transparent 1px);
+        background-size: 34px 34px;
+        mask-image: linear-gradient(90deg, #000, transparent 50%);
+        -webkit-mask-image: linear-gradient(90deg, #000, transparent 50%);
+      }
+      .og-card__glow { z-index: -1; background: radial-gradient(circle at 8% 92%, rgba(30, 157, 200, .18), transparent 28%); }
+      .og-card__frame { position: absolute; inset: 18px; border: 1px solid rgba(243, 243, 240, .12); border-radius: 22px; pointer-events: none; }
+
+      .og-card__content { display: flex; flex-direction: column; width: 700px; height: 100%; padding: 50px 0 44px 60px; }
+      .og-card__brand { display: flex; align-items: center; gap: 14px; }
+      .og-card__brand img { width: 150px; height: 28px; object-fit: contain; }
+      .og-card__brand-line { width: 1px; height: 34px; background: rgba(243, 243, 240, .22); }
+      .og-card__wordmark { font-size: 26px; font-weight: 600; letter-spacing: -.02em; line-height: 1; color: #a0a29a; }
+
+      .og-card__kicker {
+        display: flex; align-items: center; gap: 10px; margin-top: 66px;
+        color: #a0a29a; font-family: "JetBrains Mono", Consolas, monospace;
+        font-size: 13px; font-weight: 600; letter-spacing: .18em; line-height: 1; text-transform: uppercase;
+      }
+      .og-card__kicker::before { content: ""; width: 8px; height: 8px; border-radius: 999px; background: #1e9dc8; box-shadow: 0 0 20px rgba(30, 157, 200, .8); }
+      .og-card__title { max-width: 660px; margin: 22px 0 0; font-size: 66px; font-weight: 800; letter-spacing: -.045em; line-height: .96; }
+      .og-card__title-accent { color: #1e9dc8; }
+      .og-card__description { max-width: 560px; margin: 24px 0 0; color: #b9bbb4; font-size: 22px; font-weight: 500; letter-spacing: -.01em; line-height: 1.35; }
+      .og-card__footer { display: flex; align-items: center; gap: 12px; margin-top: auto; font-size: 15px; font-weight: 600; letter-spacing: -.01em; }
+      .og-card__footer-line { width: 52px; height: 1px; background: #1e9dc8; }
+
+      /* grade de dias do banner do README, o dispositivo assinatura do produto */
+      .og-card__days { position: absolute; right: 64px; bottom: 60px; display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; font-family: "JetBrains Mono", Consolas, monospace; }
+      .og-card__days span { font-size: 12px; letter-spacing: .16em; color: #a0a29a; text-align: center; }
+      .og-card__days i { display: block; width: 50px; height: 30px; border-radius: 5px; border: 1px solid rgba(243, 243, 240, .16); }
+      .og-card__days i.is-on { background: #1e9dc8; border-color: #1e9dc8; box-shadow: 0 0 18px rgba(30, 157, 200, .35); }
+      .og-card__days i.is-half { background: rgba(30, 157, 200, .3); border-color: rgba(30, 157, 200, .45); }
+    </style>
+  </head>
+  <body>
+    <article id="routines-og" class="og-card" aria-label="Syntax Routines social preview">
+      <img class="og-card__visual" src="../../../public/brand/login-bg-desktop.webp" alt="" />
+      <div class="og-card__shade"></div>
+      <div class="og-card__mesh"></div>
+      <div class="og-card__glow"></div>
+      <div class="og-card__frame"></div>
+
+      <div class="og-card__content">
+        <div class="og-card__brand">
+          <img src="../../../public/brand/syntax-logo.svg" alt="SyntaxLab" />
+          <span class="og-card__brand-line"></span>
+          <span class="og-card__wordmark">Routines</span>
+        </div>
+
+        <div class="og-card__kicker">Claude Code + Codex + scripts · on time, on this PC</div>
+        <h1 class="og-card__title">
+          Your routines<br />
+          <span class="og-card__title-accent">run on their own.</span>
+        </h1>
+        <p class="og-card__description">Local, open-source scheduler with an <span style="white-space: nowrap">e-mail</span> alert when it fails.</p>
+
+        <div class="og-card__footer">
+          <span class="og-card__footer-line"></span>
+          <span>routines.syntaxlab.com.br</span>
+        </div>
+      </div>
+
+      <div class="og-card__days" aria-hidden="true">
+        <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
+        <i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i></i><i></i>
+        <i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i class="is-on"></i>
+      </div>
+    </article>
+  </body>
+</html>

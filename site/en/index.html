@@ -1,0 +1,481 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Syntax Routines: scheduled Claude Code, Codex and script routines on your Windows PC</title>
+<meta name="description" content="Schedule Claude Code, Codex and script routines that run on their own on Windows, at the right time, with an e-mail alert when they fail. No server, no cloud. Open source, MIT.">
+<link rel="canonical" href="https://routines.syntaxlab.com.br/en/">
+<link rel="alternate" hreflang="pt-BR" href="https://routines.syntaxlab.com.br/">
+<link rel="alternate" hreflang="en" href="https://routines.syntaxlab.com.br/en/">
+<link rel="alternate" hreflang="x-default" href="https://routines.syntaxlab.com.br/">
+<meta name="robots" content="index, follow, max-image-preview:large">
+<meta name="theme-color" content="#0a0a0a">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Syntax Routines">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="pt_BR">
+<meta property="og:url" content="https://routines.syntaxlab.com.br/en/">
+<meta property="og:title" content="Syntax Routines: your Claude Code, Codex and script routines run on their own">
+<meta property="og:description" content="At the right time, on this PC, with an e-mail alert when they fail. No server, no cloud. Open source, MIT.">
+<meta property="og:image" content="https://routines.syntaxlab.com.br/syntax-routines-og-en.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="Syntax Routines: scheduled Claude Code, Codex and script routines on Windows.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Syntax Routines: your Claude Code, Codex and script routines run on their own">
+<meta name="twitter:description" content="At the right time, on this PC, with an e-mail alert when they fail. No server, no cloud. Open source, MIT.">
+<meta name="twitter:image" content="https://routines.syntaxlab.com.br/syntax-routines-og-en.png">
+<link rel="icon" href="../favicon.ico" sizes="any">
+<link rel="icon" href="../img/syntax-x.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="../img/icon-192.png">
+<link rel="preload" href="../fonts/montserrat-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../fonts/montserrat-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="../img/rotinas-960.webp" as="image" type="image/webp" imagesrcset="../img/rotinas-640.webp 640w, ../img/rotinas-960.webp 960w, ../img/rotinas-1280.webp 1280w" imagesizes="(min-width: 1024px) 560px, 100vw">
+<link rel="stylesheet" href="../css/site.css">
+<noscript><style>.fx-reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Syntax Routines",
+  "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Windows 10, Windows 11",
+  "url": "https://routines.syntaxlab.com.br/en/",
+  "downloadUrl": "https://github.com/thalesholleben/syntax-routines/releases/latest",
+  "codeRepository": "https://github.com/thalesholleben/syntax-routines",
+  "license": "https://opensource.org/licenses/MIT",
+  "softwareVersion": "0.1",
+  "inLanguage": "en",
+  "description": "Scheduled Claude Code, Codex and script routines that run on their own on Windows, at the right time, with an e-mail alert when they fail.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "author": { "@type": "Organization", "name": "SyntaxLab", "url": "https://syntaxlab.com.br" }
+}
+</script>
+</head>
+<body>
+<a class="lp-skip" href="#content">Skip to content</a>
+
+<header class="lp-topbar">
+  <div class="lp-wrap">
+    <a class="lp-topbar__brand" href="./" aria-label="Syntax Routines, home">
+      <img src="../img/syntax-x.svg" alt="" width="26" height="18">
+      <b>Syntax</b><span>Routines</span>
+    </a>
+    <nav aria-label="Page sections">
+      <a href="#how-it-works">How it works</a>
+      <a href="#kinds">Routine kinds</a>
+      <a href="#agent">The agent</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+    </nav>
+    <div class="lp-topbar__tools">
+      <a class="lp-topbar__lang" href="../" hreflang="pt-BR" lang="pt-BR">PT</a>
+      <a class="lp-btn is-ghost is-small" href="https://github.com/thalesholleben/syntax-routines">
+        <svg viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</header>
+
+<main id="content">
+
+<!-- 1 · hero -->
+<section class="lp-hero" aria-labelledby="hero-title">
+  <div class="lp-wrap">
+    <div class="lp-hero__copy">
+      <p class="lp-kicker">Open source · Claude Code, Codex and scripts</p>
+      <h1 id="hero-title">Your routines run on their own. <em>At the right time, on this PC.</em></h1>
+      <p class="lp-hero__lead">Register once: who runs it, the days, the time and what to do. Syntax Routines runs Claude Code, Codex or your script on your computer and sends an e-mail only when something fails.</p>
+      <p class="lp-hero__sub">No server, no account, no cloud. One local process, one SQLite database and a panel on 127.0.0.1.</p>
+      <div class="lp-hero__actions">
+        <a class="lp-btn is-primary" href="https://github.com/thalesholleben/syntax-routines/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          Download for Windows
+        </a>
+        <a class="lp-btn is-ghost" href="https://github.com/thalesholleben/syntax-routines">View on GitHub</a>
+      </div>
+      <ul class="lp-hero__proof" aria-label="Project facts">
+        <li>MIT, free</li>
+        <li>In daily use since 2026-09-14</li>
+        <li>Windows 10 and 11, Node.js 24</li>
+      </ul>
+      <p class="lp-hero__skill">Using Claude Code or Codex? There is a <a href="https://github.com/thalesholleben/syntax-routines/tree/main/skills">skill so the agent itself takes care of the routines</a>.</p>
+    </div>
+    <div class="lp-hero__visual">
+      <div class="fx-glow" aria-hidden="true"></div>
+      <div class="lp-days" aria-hidden="true">
+        <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
+        <i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i></i><i></i>
+        <i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i>
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </div>
+      <figure>
+        <div class="lp-hero__frame">
+          <div class="lp-hero__bar" aria-hidden="true"><span><i></i><i></i><i></i> 127.0.0.1:4090</span><span>Syntax Routines</span></div>
+          <picture>
+            <source type="image/webp" srcset="../img/rotinas-640.webp 640w, ../img/rotinas-960.webp 960w, ../img/rotinas-1280.webp 1280w" sizes="(min-width: 1024px) 560px, 100vw">
+            <img src="../img/rotinas.png" width="1280" height="900" fetchpriority="high" decoding="async" alt="Syntax Routines panel with four routines: two scripts, one Claude Code routine and one Codex routine, each with its next run and the result of the last one">
+          </picture>
+        </div>
+        <figcaption class="lp-hero__caption">The panel, with demo data and in Brazilian Portuguese, the product's audience. Each routine shows its next run and how the last one ended.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- 2 · who it is for -->
+<section class="lp-audience" aria-label="Who it is for">
+  <div class="lp-wrap">
+    <ul class="fx-reveal">
+      <li><b>Claude Code</b><p>Prompt over stdin, model and effort set by you, permission bypass inside the folder.</p></li>
+      <li><b>Codex</b><p>The same path, with automatic agent switch when the usage limit runs out.</p></li>
+      <li><b>Scripts</b><p>One command line as in cmd. Exit code 0 succeeds, anything else is a failure.</p></li>
+      <li><b>Windows 10 and 11</b><p>Installs without admin rights, starts at your user's logon and restarts if it dies.</p></li>
+    </ul>
+  </div>
+</section>
+
+<!-- 3 · the problem -->
+<section class="lp-pain" id="problem" aria-labelledby="pain-title">
+  <div class="lp-wrap">
+    <div class="lp-title fx-reveal">
+      <p class="lp-kicker">The problem</p>
+      <h2 id="pain-title">People who work with coding agents accumulate <em>work that repeats.</em></h2>
+      <p>The summary every morning, the queue checked every 15 minutes, the weekly repository sweep. Today that lives in two bad places.</p>
+    </div>
+    <div class="lp-pain__grid">
+      <ol class="fx-reveal-group">
+        <li class="fx-reveal">
+          <blockquote>Every Monday I open the chat and ask for the same summary again.</blockquote>
+          <p><strong>Becomes a Claude Code routine</strong> with a prompt, days and time. Monday at 09:00 it runs without you typing anything.</p>
+        </li>
+        <li class="fx-reveal">
+          <blockquote>It is in Task Scheduler, in a .ps1 nobody remembers where it came from.</blockquote>
+          <p><strong>Becomes a script routine</strong> with history and output of every run in the panel, and the command visible instead of hidden.</p>
+        </li>
+        <li class="fx-reveal">
+          <blockquote>The queue has to be checked every 15 minutes, and nobody keeps watching.</blockquote>
+          <p><strong>Becomes an interval routine</strong>, from 5 min to 12 h, on the days you mark. Failed, an e-mail arrives. Worked, silence.</p>
+        </li>
+      </ol>
+      <aside class="lp-pain__aside fx-reveal" style="--fx-delay:150ms">
+        <h3>Where it comes from</h3>
+        <p>The author migrated seven tasks from the Windows Task Scheduler (publishing pipelines, daily summaries and a backup check) to Syntax Routines and has used it every day since 2026-09-14.</p>
+        <p>To migrate yours: register the script routine with the same command, run it once with "Run now", disable the old task with <code>Disable-ScheduledTask</code> and only remove it after one green cycle.</p>
+      </aside>
+    </div>
+  </div>
+</section>
+
+<!-- 4 · how it works -->
+<section class="lp-steps" id="how-it-works" aria-labelledby="steps-title">
+  <div class="lp-wrap">
+    <div class="lp-title fx-reveal">
+      <p class="lp-kicker">How it works</p>
+      <h2 id="steps-title">Three steps, and the third one <em>only happens when something goes wrong.</em></h2>
+    </div>
+    <ol class="fx-reveal-group">
+      <li class="fx-reveal">
+        <span aria-hidden="true">01</span>
+        <h3>Register the routine</h3>
+        <p>Who runs it (Claude Code, Codex or a command line), the folder, the days, the time or the interval, and the prompt or the command. From the panel, the CLI or the agent itself.</p>
+      </li>
+      <li class="fx-reveal">
+        <span aria-hidden="true">02</span>
+        <h3>It runs at the scheduled time</h3>
+        <p>On your PC, with your account, without asking for permission, inside the folder you chose. A locked screen does not interrupt. PC off at that time: you decide whether it skips or runs at boot.</p>
+      </li>
+      <li class="fx-reveal">
+        <span aria-hidden="true">03</span>
+        <h3>It failed, you hear about it</h3>
+        <p>Exit code, timeout, usage limit exhausted, folder out of place: any failure produces an e-mail with the routine, the error and the panel link. Success stays quiet, and the log is kept for <code>30 days</code>.</p>
+      </li>
+    </ol>
+  </div>
+</section>
+
+<!-- 5 · routine kinds -->
+<section class="lp-kinds" id="kinds" aria-labelledby="kinds-title">
+  <div class="lp-wrap">
+    <div class="lp-title fx-reveal">
+      <p class="lp-kicker">Three kinds of routine</p>
+      <h2 id="kinds-title">Agent or script, <em>the same scheduler.</em></h2>
+      <p>An agent routine gets a prompt. A script routine gets a command line. Both get days, time, history and alerts.</p>
+    </div>
+    <div class="lp-kinds__grid fx-reveal-group">
+      <article class="fx-reveal">
+        <span class="lp-kinds__mark is-claude" aria-hidden="true"><i></i></span>
+        <h3>Claude Code</h3>
+        <p>Prompt over stdin with permission bypass, model and effort set on the routine. Usage limit: up to three attempts, and it can switch to Codex on its own.</p>
+        <pre><b>claude</b> --model opus
+<b>prompt</b>  Summarize yesterday's campaigns…
+<b>when</b>    Mon to Fri, at 09:00</pre>
+      </article>
+      <article class="fx-reveal">
+        <span class="lp-kinds__mark is-codex" aria-hidden="true"><i></i></span>
+        <h3>Codex</h3>
+        <p>The same contract as Claude Code, with OpenAI's executor. Each one is the fallback for the other when "Switch agent automatically" is on.</p>
+        <pre><b>codex</b>   CLI default model
+<b>prompt</b>  Review the repository and open…
+<b>when</b>    Sun, at 07:00</pre>
+      </article>
+      <article class="fx-reveal">
+        <span class="lp-kinds__mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m4 17 6-6-6-6M12 19h8"/></svg></span>
+        <h3>Script</h3>
+        <p>One command line as you would type it in cmd, run in the routine's folder, without a window. Exit code 0 succeeds; anything else is a failure, and becomes an e-mail.</p>
+        <pre><b>cmd</b>     powershell -File check-backup.ps1
+<b>folder</b>  D:\Backups
+<b>when</b>    every day, every 15 min</pre>
+      </article>
+    </div>
+    <p class="lp-kinds__foot fx-reveal">Every routine runs inside the root folder set in Settings, checked by real path: a junction or symlink pointing outside is refused, and system folders are blocked. Up to N runs in parallel, one per routine.</p>
+  </div>
+</section>
+
+<!-- 6 · principle band -->
+<section class="lp-band" aria-labelledby="band-title">
+  <div class="lp-wrap">
+    <div class="fx-reveal">
+      <p class="lp-kicker">Principle</p>
+      <h2 id="band-title">There is no server, account or cloud. It is your PC, at the time you set.</h2>
+      <p>One local process that starts at logon, one SQLite database in the app folder and a panel that listens only on 127.0.0.1. Whoever has the panel password controls your PC, so treat it like your Windows password.</p>
+    </div>
+    <div class="lp-days is-accent is-live fx-reveal" aria-hidden="true" style="--fx-delay:120ms">
+      <span>MON</span><span>TUE</span><span>WED</span><span>THU</span><span>FRI</span><span>SAT</span><span>SUN</span>
+      <i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i></i><i></i>
+      <i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i><i class="is-half"></i>
+      <i></i><i></i><i></i><i></i><i></i><i></i><i class="is-on"></i>
+    </div>
+  </div>
+</section>
+
+<!-- 7 · the agent takes care -->
+<section class="lp-agent" id="agent" aria-labelledby="agent-title">
+  <div class="lp-wrap">
+    <div class="lp-agent__copy fx-reveal">
+      <div class="lp-title">
+        <p class="lp-kicker">CLI + skill</p>
+        <h2 id="agent-title">You do not even need to open the panel. <em>The agent takes care of the routines.</em></h2>
+        <p>The app ships with a CLI and a skill for Claude Code and Codex. With both installed, the agent sees the routines, suggests scheduling what you repeat and registers it after you say yes.</p>
+      </div>
+      <div>
+      <ul>
+        <li><strong>Reads</strong> with <code>list</code>, <code>show</code>, <code>settings</code>, <code>runs</code> and <code>log</code>: schedule, next run, how the last one ended and the whole output.</li>
+        <li><strong>Writes</strong> with <code>add</code>, <code>edit</code>, <code>enable</code>, <code>disable</code>, <code>run-now</code> and <code>rm</code>, through the same validation as the API routes.</li>
+        <li><strong>Asks for your yes</strong> before creating, changing or deleting any routine. The skill is what forbids the opposite.</li>
+      </ul>
+      <div class="lp-agent__install">
+        <p>In Claude Code, without cloning anything:</p>
+        <pre>/plugin marketplace add thalesholleben/syntax-routines
+/plugin install syntax-routines@syntax-routines</pre>
+        <p>For Codex, from a clone: <code>node scripts/install-skill.mjs codex</code>. Details in <a href="https://github.com/thalesholleben/syntax-routines/tree/main/skills">skills/</a>. The CLI output and the skill are in Brazilian Portuguese.</p>
+      </div>
+      </div>
+    </div>
+    <div class="lp-agent__term fx-reveal" style="--fx-delay:120ms" role="img" aria-label="Terminal with the output of routines list: four routines with schedule, next run and last result, and a run-now queuing a run">
+      <header aria-hidden="true"><i></i><i></i><i></i> PowerShell · syntax-routines</header>
+      <pre aria-hidden="true"><em>&gt;</em> <b>.\routines.cmd list</b>
+id  estado     tipo    nome                          agenda                        próxima         última
+#1  ativa      SCRIPT  Conferir o backup da noite    todos os dias, às 08:00       amanhã 08:00    nunca rodou
+#2  ativa      SCRIPT  Fila de publicação do Instagr…todos os dias, a cada 15 min  hoje 15:15      <span class="is-ok">concluída</span> hoje 15:06
+#3  ativa      CLAUDE  Resumo diário do Google Ads   seg a sex, às 09:00           amanhã 09:00    <span class="is-ok">concluída</span> hoje 15:06
+#4  ativa      CODEX   Revisão semanal do repo       dom, às 07:00                 20/09 07:00     <span class="is-bad">falhou</span> ontem 07:12
+
+<em>&gt;</em> <b>.\routines.cmd log 187</b>
+execução #187 de "Revisão semanal do repo": falhou, código 1, 2 min 4 s
+nota: Tentativa 3 falhou (limite de uso); tentativas esgotadas.
+erro: You've hit your usage limit. Try again at 11:00.
+
+<em>&gt;</em> <b>.\routines.cmd run-now 3</b>
+execução #188 na fila para "Resumo diário do Google Ads". O app despacha em até 30 s.
+acompanhe com: runs 3   |   saída: log 188</pre>
+    </div>
+  </div>
+</section>
+
+<!-- 8 · screenshots -->
+<section class="lp-shots" id="screenshots" aria-labelledby="shots-title">
+  <div class="lp-wrap">
+    <div class="lp-title fx-reveal">
+      <p class="lp-kicker">Inside</p>
+      <h2 id="shots-title">The whole panel fits in <em>two screens and one dialog.</em></h2>
+      <p>Real screenshots with demo data, taken from a disposable install. No real routine appears here. The interface is in Brazilian Portuguese.</p>
+    </div>
+    <div class="lp-shots__grid fx-reveal-group">
+      <figure class="fx-reveal is-wide">
+        <picture>
+          <source type="image/webp" srcset="../img/modal-agente-640.webp 640w, ../img/modal-agente-960.webp 960w, ../img/modal-agente-1280.webp 1280w" sizes="(min-width: 768px) 60vw, 100vw">
+          <img src="../img/modal-agente.png" width="1280" height="900" loading="lazy" decoding="async" alt="Edit dialog of a Claude Code routine: executor, model, effort, days, time and prompt">
+        </picture>
+        <figcaption><b>New agent routine</b>Executor, model, effort, days, time, prompt and what to do if the PC was off.</figcaption>
+      </figure>
+      <figure class="fx-reveal is-tall">
+        <picture>
+          <source type="image/webp" srcset="../img/rotinas-mobile-390.webp">
+          <img src="../img/rotinas-mobile.png" width="390" height="844" loading="lazy" decoding="async" alt="Syntax Routines routine list on a phone screen, with the same cards stacked">
+        </picture>
+        <figcaption><b>On the phone</b>The same panel, to check from the couch what ran.</figcaption>
+      </figure>
+      <figure class="fx-reveal">
+        <picture>
+          <source type="image/webp" srcset="../img/modal-script-640.webp 640w, ../img/modal-script-960.webp 960w, ../img/modal-script-1280.webp 1280w" sizes="(min-width: 768px) 50vw, 100vw">
+          <img src="../img/modal-script.png" width="1280" height="900" loading="lazy" decoding="async" alt="Edit dialog of a script routine every 15 minutes, with the command and the folder">
+        </picture>
+        <figcaption><b>Script routine by interval</b>Every 15 minutes on the marked days, with the command and the folder.</figcaption>
+      </figure>
+      <figure class="fx-reveal">
+        <picture>
+          <source type="image/webp" srcset="../img/ajustes-640.webp 640w, ../img/ajustes-960.webp 960w, ../img/ajustes-1280.webp 1280w" sizes="(min-width: 768px) 50vw, 100vw">
+          <img src="../img/ajustes.png" width="1280" height="900" loading="lazy" decoding="async" alt="Settings: root folder, binaries, parallel runs, alert e-mail and scheduler state">
+        </picture>
+        <figcaption><b>Settings</b>Root folder, claude and codex binaries, parallelism, alert e-mail and the scheduler state.</figcaption>
+      </figure>
+    </div>
+  </div>
+</section>
+
+<!-- 9 · install -->
+<section class="lp-install" id="install" aria-labelledby="install-title">
+  <div class="lp-wrap">
+    <div class="fx-reveal">
+      <p class="lp-kicker">Installation</p>
+      <div class="lp-title">
+        <h2 id="install-title">A regular PowerShell, <em>no admin rights.</em></h2>
+        <p>Windows 10 or 11 and Node.js 24.13 or newer. For agent routines, <code>claude</code> and <code>codex</code> already installed and authenticated under your user.</p>
+      </div>
+      <div class="lp-install__panel">
+        <pre id="install-cmd"><em># in the folder where you keep projects</em>
+git clone https://github.com/thalesholleben/syntax-routines.git
+cd syntax-routines
+Copy-Item .env.example .env      <em># and fill in SMTP if you want e-mail alerts</em>
+.\service\install.ps1 <b>-Build</b></pre>
+        <div class="lp-install__row">
+          <a class="lp-btn is-primary" href="https://github.com/thalesholleben/syntax-routines/releases/latest">Download the latest release</a>
+          <button class="lp-btn is-ghost" type="button" data-copy="install-cmd" data-copied="Copied" hidden>Copy commands</button>
+          <span>Prefer the zip? The release has the same content as the clone.</span>
+        </div>
+      </div>
+    </div>
+    <div class="lp-install__notes fx-reveal">
+      <div><b>What the script does</b><p>Installs dependencies, builds, registers the <code>SyntaxRoutines</code> scheduled task at your user's logon (no window, restarts if it dies) and creates the desktop shortcut, which opens the panel in app mode on Chrome or Edge.</p></div>
+      <div><b>First access</b><p>You create the panel password. Then, in Settings, you set the root folder where routines may run and the e-mail that receives alerts. Test e-mail button included.</p></div>
+      <div><b>To remove</b><p><code>.\service\uninstall.ps1</code>. The data in <code>data/</code> stays. Without installing the task: <code>npm install</code>, <code>npm run build</code> and <code>start.cmd</code>.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- 10 · FAQ -->
+<section class="lp-faq" id="faq" aria-labelledby="faq-title">
+  <div class="lp-wrap">
+    <div class="lp-title fx-reveal">
+      <p class="lp-kicker">Frequently asked questions</p>
+      <h2 id="faq-title">What usually comes up before <em>installing.</em></h2>
+    </div>
+    <div class="lp-faq__list fx-reveal">
+      <details>
+        <summary>What if the PC is off at the scheduled time?</summary>
+        <p>Each fixed-time routine chooses "Skip this time" or "Run at boot", with the delay set in Settings. If several occurrences were missed, only the most recent one counts. Interval routines simply wait for the next slot.</p>
+      </details>
+      <details>
+        <summary>Does a locked screen interrupt?</summary>
+        <p>No. The app runs as a scheduled task of your user, so it needs you logged in, but not an unlocked screen. If the PC boots and nobody logs in, the routines wait for the logon.</p>
+      </details>
+      <details>
+        <summary>What happens when the Claude or Codex usage limit runs out?</summary>
+        <p>The routine tries up to three times. With "Switch agent automatically" on, it falls back to the other agent; off, it waits for the reset time. Attempts exhausted, it becomes a failure, and a failure becomes an e-mail.</p>
+      </details>
+      <details>
+        <summary>How does the e-mail alert work?</summary>
+        <p>SMTP lives in <code>.env</code> (Gmail and Google Workspace defaults on port 587 with STARTTLS; with two-step verification, use an app password). The recipient is set in Settings. Every run that ends in failure produces an e-mail with the routine, the error and the panel link. Success stays quiet. Without <code>.env</code>, the app starts without e-mail and Settings says so.</p>
+      </details>
+      <details>
+        <summary>Is this safe? The agent runs with full access.</summary>
+        <p>Yes, and on purpose: an agent routine runs Claude Code or Codex with <code>--dangerously-skip-permissions</code>, and a script routine runs any command, always inside the root folder you chose, checked by real path. The server listens only on 127.0.0.1, requires a password (scrypt) for everything beyond login and checks Host and Origin on every API request. Whoever has the panel password, or access to the app folder, controls your PC: treat the password like your Windows password.</p>
+      </details>
+      <details>
+        <summary>Does it depend on Syntax Ops or any other product?</summary>
+        <p>No. Commercially it is an extension of Syntax Ops, SyntaxLab's panel for dispatching work to agents. Technically it is independent: its own repository, database and process, with no dependency on any other product.</p>
+      </details>
+      <details>
+        <summary>Is there support?</summary>
+        <p>It is an open-source project at version 0.1, in daily use by the author. Issues and pull requests are welcome on GitHub; there is no support channel with a deadline. What is verified, with command and output, lives in the plans under <code>docs/plans/</code> in the repository, in Portuguese.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- 11 · closing -->
+<section class="lp-close" aria-labelledby="close-title">
+  <div class="lp-close__bg" aria-hidden="true">
+    <picture>
+      <source type="image/webp" srcset="../img/login-card-680.webp">
+      <img src="../img/login-card.png" width="680" height="900" loading="lazy" decoding="async" alt="">
+    </picture>
+    <div class="fx-veil is-left"></div>
+  </div>
+  <div class="fx-glow" aria-hidden="true"></div>
+  <div class="lp-wrap">
+    <div class="lp-close__copy fx-reveal">
+      <p class="lp-kicker">Start today</p>
+      <h2 id="close-title">Next Monday at 09:00 <em>can already run on its own.</em></h2>
+      <p>Clone or download, run the installer, create the password and register the first routine. Or ask your agent to do it.</p>
+      <div class="lp-close__actions">
+        <a class="lp-btn is-primary" href="https://github.com/thalesholleben/syntax-routines/releases/latest">
+          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+          Download for Windows
+        </a>
+        <a class="lp-btn is-ghost" href="https://github.com/thalesholleben/syntax-routines">View on GitHub</a>
+      </div>
+      <p class="lp-close__meta">MIT · <a href="https://github.com/thalesholleben/syntax-routines/tree/main/skills">skill for Claude Code and Codex</a> · <a href="https://github.com/thalesholleben/syntax-routines/blob/main/CHANGELOG.md">changelog</a></p>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<footer class="lp-footer">
+  <div class="lp-wrap">
+    <div class="lp-footer__brand">
+      <a href="https://syntaxlab.com.br" aria-label="SyntaxLab"><img src="../img/syntax-logo.svg" alt="SyntaxLab" width="132" height="25"></a>
+      <p>Syntax Routines is an open-source product by SyntaxLab, Thales Gomes' software house. Claude Code, Codex and script routines on Windows.</p>
+    </div>
+    <div class="lp-footer__cols">
+      <div>
+        <b>Product</b>
+        <ul>
+          <li><a href="https://github.com/thalesholleben/syntax-routines">Repository on GitHub</a></li>
+          <li><a href="https://github.com/thalesholleben/syntax-routines/releases/latest">Download</a></li>
+          <li><a href="https://github.com/thalesholleben/syntax-routines/tree/main/skills">Agent skill</a></li>
+          <li><a href="https://github.com/thalesholleben/syntax-routines/blob/main/CHANGELOG.md">Changelog</a></li>
+          <li><a href="https://github.com/thalesholleben/syntax-routines/blob/main/SECURITY.md">Security</a></li>
+        </ul>
+      </div>
+      <div>
+        <b>Sibling products</b>
+        <ul>
+          <li><a href="https://backlog.syntaxlab.com.br">Backlog Syntax<small>tasks for people and agents</small></a></li>
+          <li><a href="https://ops.syntaxlab.com.br">Syntax Ops<small>dispatching work to agents</small></a></li>
+        </ul>
+      </div>
+      <div>
+        <b>SyntaxLab</b>
+        <ul>
+          <li><a href="https://syntaxlab.com.br">syntaxlab.com.br</a></li>
+          <li><a href="https://github.com/thalesholleben">GitHub</a></li>
+          <li><a href="../" hreflang="pt-BR" lang="pt-BR">Versão em português</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="lp-footer__legal">
+      <span>© 2026 SyntaxLab Tecnologia LTDA.</span>
+      <a href="https://github.com/thalesholleben/syntax-routines/blob/main/LICENSE">MIT license</a>
+      <span>Claude Code is Anthropic's, Codex is OpenAI's. Names cited only to say what the app runs.</span>
+    </div>
+  </div>
+</footer>
+
+<script defer src="../js/site.js"></script>
+</body>
+</html>

@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://routines.syntaxlab.com.br/sitemap.xml
