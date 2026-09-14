@@ -8,6 +8,7 @@
 
 <p align="center">
   <a href="#installation">Install</a> ·
+  <a href="https://routines.syntaxlab.com.br/en/">Website</a> ·
   <a href="skills/README.md">Agent skill</a> ·
   <a href="https://syntaxlab.com.br">SyntaxLab</a> ·
   <a href="README.pt-BR.md">Português do Brasil</a>

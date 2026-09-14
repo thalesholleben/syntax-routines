@@ -1,6 +1,7 @@
 # Landing page
 
-Static page for `routines.syntaxlab.com.br`: `index.html` (Brazilian Portuguese), `en/index.html`,
+Static page published at <https://routines.syntaxlab.com.br> (Brazilian Portuguese) and
+<https://routines.syntaxlab.com.br/en/> (English): `index.html`, `en/index.html`,
 `css/`, `js/`, `img/`, `fonts/` (Montserrat and JetBrains Mono, OFL, self-hosted), `robots.txt`,
 `sitemap.xml`, `llms.txt` and the two Open Graph images. No build step and every path is relative,
 so the folder serves as-is from the root of a host or from a subfolder. `canonical`, `hreflang`
@@ -9,7 +10,7 @@ domain changes.
 
 - `docs/design-direction.md` and `docs/css-namespaces.md` are the design notes for whoever edits
   the page; they are not meant to be served.
-- Images come from `../docs/assets/screenshots/` through `node ../scripts/site-images.py`
+- Images come from `../docs/assets/screenshots/` through `python ../scripts/site-images.py`
   (webp at 640/960/1280); the Open Graph PNGs come from `node ../scripts/render-og.mjs`
   (and `--en`), which also copies them here.
 - Validation used before publishing: 0 errors in the frontend gate, no horizontal overflow at
