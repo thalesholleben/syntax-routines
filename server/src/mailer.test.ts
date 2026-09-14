@@ -61,6 +61,21 @@ describe("createMailer", () => {
     expect((error as Error).message).toBe("SMTP recusou o envio: Invalid login: 535 AUTH [redacted]");
     expect(sanitizeSmtpError(new Error("connect failed password=abc token=xyz"))).toBe("connect failed password=[redacted] token=[redacted]");
   });
+
+  it("a senha e o usuario do .env somem do detalhe em qualquer formato que o SMTP os ecoe", async () => {
+    const failing: MailTransport = {
+      sendMail: async () => {
+        throw new Error(`SMTP rejected password: ${env.SMTP_PASS} for ${env.SMTP_USER} (retry with ${env.SMTP_PASS})`);
+      }
+    };
+    const mailer = createMailer(env, failing);
+    const error = (await mailer.send({ to: "a@example.com", subject: "s", text: "t", html: "t" }).catch((err: unknown) => err)) as MailError;
+    expect(error).toBeInstanceOf(MailError);
+    expect(error.detail).toBe("SMTP rejected password: [redacted] for [redacted] (retry with [redacted])");
+    expect(error.message).not.toContain(env.SMTP_PASS as string);
+    expect(error.localized("en")).toBe("SMTP rejected the message: SMTP rejected password: [redacted] for [redacted] (retry with [redacted])");
+    expect(error.localized("pt")).not.toContain(env.SMTP_PASS as string);
+  });
 });
 
 describe("sanitizeSmtpError", () => {

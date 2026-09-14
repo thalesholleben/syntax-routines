@@ -79,10 +79,19 @@ export function readSmtpConfig(env: NodeJS.ProcessEnv): SmtpConfig {
 }
 
 /** Mensagem de erro do SMTP sem credencial: senha, token e o comando AUTH nunca chegam ao log nem a tela. */
-export function sanitizeSmtpError(error: unknown): string {
+/**
+ * Texto de erro do SMTP que pode ir para o painel. Os padroes cobrem os formatos comuns; os `secrets`
+ * (a senha e o usuario do .env) sao apagados literalmente, para o servidor que ecoa a credencial em
+ * qualquer outro formato nao vazar nada por aqui.
+ */
+export function sanitizeSmtpError(error: unknown, secrets: readonly string[] = []): string {
   const raw = error instanceof Error ? error.message : String(error);
+  let text = raw;
+  for (const secret of secrets) {
+    if (secret.length > 0) text = text.split(secret).join("[redacted]");
+  }
   // Depois de AUTH vem o mecanismo e a credencial em base64: some tudo ate o fim da linha.
-  return raw
+  return text
     .replace(/(pass(?:word)?|token|secret)=\S+/gi, "$1=[redacted]")
     .replace(/\bAUTH\b.*$/gim, "AUTH [redacted]")
     .slice(0, 500);
@@ -123,7 +132,7 @@ export function createMailer(env: NodeJS.ProcessEnv = process.env, transport?: M
           html: message.html
         });
       } catch (error) {
-        throw new MailError("smtpRejected", sanitizeSmtpError(error));
+        throw new MailError("smtpRejected", sanitizeSmtpError(error, [config.pass, config.user]));
       }
     }
   };
