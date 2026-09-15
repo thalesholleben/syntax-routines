@@ -4,7 +4,7 @@ import { AlertTriangle, Check, FolderTree, Save, SlidersHorizontal } from "lucid
 import { useI18n } from "../i18n";
 import { apiRequest, formatApiError } from "../lib/api";
 import { useFormat } from "../lib/format";
-import type { AgentKind, AgentsMeta, ExecutorKind, MissedPolicy, RoutineDto, RoutinePayload } from "../types";
+import type { AgentKind, AgentsMeta, ExecutorKind, MissedPolicy, Platform, RoutineDto, RoutinePayload } from "../types";
 import { EffortToggle } from "./EffortToggle";
 import { ProviderMark } from "./Logo";
 import { Button, Input, Label, Modal, Select, Spinner, Textarea } from "./ui";
@@ -62,6 +62,7 @@ export function RoutineModal({
   open,
   routine,
   agents,
+  platform,
   rootDirectory,
   bootDelayMinutes,
   onSaved,
@@ -70,6 +71,7 @@ export function RoutineModal({
   open: boolean;
   routine: RoutineDto | null;
   agents: AgentsMeta;
+  platform: Platform;
   rootDirectory: string;
   bootDelayMinutes: number;
   onSaved: (routine: RoutineDto) => void;
@@ -78,6 +80,7 @@ export function RoutineModal({
   const { m } = useI18n();
   const f = useFormat();
   const baseId = useId();
+  const shell = platform === "win32" ? "windows" : "posix";
   const [form, setForm] = useState<RoutinePayload>(NEW_ROUTINE);
   const [directories, setDirectories] = useState<string[]>([]);
   const [directoryNote, setDirectoryNote] = useState<string | null>(null);
@@ -329,13 +332,13 @@ export function RoutineModal({
               id={`${baseId}-command`}
               value={form.command}
               maxLength={agents.commandMaxChars}
-              placeholder={m.commandPlaceholder}
+              placeholder={m.commandPlaceholder[shell]}
               onChange={(event) => update({ command: event.target.value })}
               className="font-mono"
               aria-describedby={`${baseId}-command-hint`}
             />
             <p id={`${baseId}-command-hint`} className="mt-2 text-xs text-[var(--color-fg-muted)]">
-              {m.commandHint}
+              {m.commandHint[shell]}
             </p>
           </section>
         ) : (

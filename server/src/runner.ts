@@ -17,7 +17,7 @@ export interface AgentRunInput {
   attempt: number;
 }
 
-/** Rotina de script: a linha de comando inteira, como seria digitada no cmd, rodando no diretorio da rotina. */
+/** Rotina de script: a linha de comando inteira, como seria digitada no terminal (cmd no Windows, sh nos demais). */
 export interface ScriptRunInput {
   runId: number;
   command: string;
@@ -146,6 +146,10 @@ function killTree(child: ChildProcess): void {
   try {
     if (isWindows && child.pid) {
       spawn("taskkill", ["/pid", String(child.pid), "/t", "/f"], { windowsHide: true });
+    } else if (child.pid) {
+      // O filho abriu um grupo de processos proprio (detached): o sinal no grupo leva junto o comando do script e os
+      // subprocessos do agente, que um SIGKILL so no filho deixaria rodando.
+      process.kill(-child.pid, "SIGKILL");
     } else {
       child.kill("SIGKILL");
     }
@@ -188,7 +192,7 @@ function execute(options: ExecuteOptions, state: ExecuteState): Promise<AgentRun
     // No Windows as CLIs sao shims .cmd e exigem shell; a linha unica ja citada evita o aviso DEP0190.
     const child = isWindows
       ? spawn(options.windowsCommandLine, { cwd: options.cwd, env, windowsHide: true, shell: true })
-      : spawn(options.posix.bin, options.posix.args, { cwd: options.cwd, env, shell: options.posix.useShell });
+      : spawn(options.posix.bin, options.posix.args, { cwd: options.cwd, env, shell: options.posix.useShell, detached: true });
     state.current = child;
 
     let stdoutPartial = "";

@@ -93,7 +93,11 @@ export interface MailMeta {
   };
 }
 
+/** Sistema do PC onde o app roda; escolhe o exemplo de comando e o texto do cofre de senha. */
+export type Platform = "win32" | "darwin" | "linux" | "other";
+
 export interface SettingsResponse {
+  platform: Platform;
   settings: SettingsDto;
   agents: AgentsMeta;
   mail: MailMeta;

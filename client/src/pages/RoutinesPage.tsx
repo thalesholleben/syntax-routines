@@ -228,6 +228,7 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
           open={editing !== null}
           routine={editing?.routine ?? null}
           agents={meta.agents}
+          platform={meta.platform}
           rootDirectory={meta.settings.rootDirectory}
           bootDelayMinutes={meta.settings.bootDelayMinutes}
           onSaved={() => void load()}
@@ -246,7 +247,8 @@ export function directoryOptions(routines: Pick<RoutineDto, "directory">[], root
   const root = rootDirectory.replace(/[\\/]+$/, "");
   return [...new Set(routines.map((routine) => routine.directory))]
     .map((value) => {
-      const isInsideRoot = root !== "" && value.toLowerCase().startsWith(`${root.toLowerCase()}\\`);
+      // O separador é "\" no Windows e "/" no macOS e no Linux: compara a raiz e exige um deles logo depois.
+      const isInsideRoot = root !== "" && value.slice(0, root.length).toLowerCase() === root.toLowerCase() && /^[\\/]/.test(value.slice(root.length));
       const relative = isInsideRoot ? value.slice(root.length + 1).replace(/\\/g, "/") : value === root ? basename(value) : value;
       return { value, label: relative };
     })

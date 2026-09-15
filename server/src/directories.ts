@@ -3,8 +3,16 @@ import path from "node:path";
 
 import type { TextKey } from "./i18n";
 
-// Mesmo bloqueio do worker do Syntax Ops: agente com acesso total nunca roda em pasta do sistema.
-const FORBIDDEN_ROOTS = ["c:\\windows", "c:\\program files", "c:\\program files (x86)", "c:\\programdata"];
+// Mesmo bloqueio do worker do Syntax Ops: agente com acesso total nunca roda em pasta do sistema. A comparacao e em
+// caixa baixa sobre o caminho REAL, entao no macOS o /etc chega como /private/etc. O /private/var fica de fora de
+// proposito: e onde mora o tmp do usuario (/var/folders).
+const FORBIDDEN_ROOTS: Partial<Record<NodeJS.Platform, readonly string[]>> = {
+  win32: ["c:\\windows", "c:\\program files", "c:\\program files (x86)", "c:\\programdata"],
+  darwin: ["/system", "/usr", "/bin", "/sbin", "/etc", "/private/etc", "/library", "/applications"],
+  linux: ["/usr", "/bin", "/sbin", "/etc", "/boot", "/dev", "/proc", "/sys", "/lib", "/lib64", "/opt"]
+};
+const SYSTEM_ROOTS = FORBIDDEN_ROOTS[process.platform] ?? FORBIDDEN_ROOTS.linux ?? [];
+// O % e as aspas sao regra do cmd do Windows; valem em todo sistema para a mesma rotina ser aceita em qualquer um.
 const UNSAFE_PATH_CHARS = /[%"]/;
 
 /** Motivos possiveis, como chaves de mensagem: quem mostra escolhe o idioma (`messages(lang)[reason]`). */
@@ -41,7 +49,7 @@ export function checkDirectory(root: string, dir: string): DirectoryCheck {
   if (UNSAFE_PATH_CHARS.test(target.real)) return { ok: false, reason: "dirUnsafeChars" };
 
   const lower = target.real.toLowerCase();
-  if (FORBIDDEN_ROOTS.some((forbidden) => lower === forbidden || lower.startsWith(forbidden + path.sep))) {
+  if (SYSTEM_ROOTS.some((forbidden) => lower === forbidden || lower.startsWith(forbidden + path.sep))) {
     return { ok: false, reason: "dirSystem" };
   }
 

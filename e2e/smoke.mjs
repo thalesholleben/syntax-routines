@@ -13,7 +13,9 @@ import { startFakeSmtp } from "./fake-smtp.mjs";
 
 const projectDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const outputDir = path.join(projectDir, "e2e", ".output");
-const fakeClaude = path.join(projectDir, "e2e", "fake-claude.cmd");
+const isWindows = process.platform === "win32";
+// Agente falso e comandos do passo 5b pelo shell do sistema: cmd no Windows, sh no macOS e no Linux.
+const fakeClaude = path.join(projectDir, "e2e", isWindows ? "fake-claude.cmd" : "fake-claude.sh");
 
 function freePort() {
   return new Promise((resolve, reject) => {
@@ -176,14 +178,14 @@ try {
   await page.keyboard.press("Escape");
   await output.waitFor({ state: "detached" });
 
-  // 5b. rotina de script pelo modal: cartao Script, intervalo, comando real pelo cmd
+  // 5b. rotina de script pelo modal: cartao Script, intervalo, comando real pelo shell do sistema
   await trigger.click();
   await dialog.waitFor();
   await dialog.getByRole("button", { name: "Script, comando CLI" }).click();
   await dialog.getByLabel("Nome").fill("Script e2e");
   await dialog.getByRole("button", { name: "A cada intervalo" }).click();
   await dialog.getByLabel("A cada", { exact: true }).selectOption("15");
-  await dialog.getByRole("textbox", { name: /Comando/ }).fill("cmd /c echo rotina-script-ok");
+  await dialog.getByRole("textbox", { name: /Comando/ }).fill(isWindows ? "cmd /c echo rotina-script-ok" : "echo rotina-script-ok");
   await dialog.getByLabel("Diretório").selectOption(path.join(root, "outro-projeto"));
   await page.screenshot({ path: path.join(outputDir, "modal-script-1280.png") });
   await dialog.getByRole("button", { name: "Salvar rotina" }).click();
@@ -197,14 +199,14 @@ try {
   await scriptCard.getByRole("button", { name: "Ver saída" }).first().click();
   const scriptOutput = page.getByRole("dialog", { name: /Execução/ });
   await scriptOutput.getByText("rotina-script-ok").first().waitFor();
-  check(true, "script rodou pelo cmd e a saída aparece no modal de execução");
+  check(true, "script rodou pelo shell e a saída aparece no modal de execução");
   await page.keyboard.press("Escape");
   await scriptOutput.waitFor({ state: "detached" });
 
   await scriptCard.getByRole("button", { name: "Editar" }).click();
   const editDialog = page.getByRole("dialog", { name: "Editar rotina", exact: true });
   await editDialog.waitFor();
-  await editDialog.getByRole("textbox", { name: /Comando/ }).fill("cmd /c exit 3");
+  await editDialog.getByRole("textbox", { name: /Comando/ }).fill(isWindows ? "cmd /c exit 3" : "exit 3");
   await editDialog.getByRole("button", { name: "Salvar rotina" }).click();
   await editDialog.waitFor({ state: "detached" });
   await scriptCard.getByRole("button", { name: "Executar agora" }).click();

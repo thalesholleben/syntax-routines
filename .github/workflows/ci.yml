@@ -35,6 +35,82 @@ jobs:
           path: e2e/.output/*.png
           if-no-files-found: ignore
 
+  posix:
+    name: typecheck, testes, build e e2e (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # O cofre de senha do Linux e o Secret Service: sem chaveiro na sessao, o teste real nao roda.
+      - name: Chaveiro e utilitarios (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libsecret-tools gnome-keyring dbus-x11 lsof
+      - run: npm ci
+      - run: npm run typecheck
+      # SR_REQUIRE_PLATFORM_TESTS reprova se o cofre real ou os testes de processo forem pulados em silencio.
+      - name: Testes (macOS)
+        if: runner.os == 'macOS'
+        run: npm test
+        env:
+          SR_REQUIRE_PLATFORM_TESTS: '1'
+      - name: Testes (Linux, com chaveiro de sessao)
+        if: runner.os == 'Linux'
+        run: dbus-run-session -- sh -c 'printf senha-do-ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null; npm test'
+        env:
+          SR_REQUIRE_PLATFORM_TESTS: '1'
+      - run: npm run skills:check
+      - run: npm run build
+      # Os dois runners ja trazem o Chrome; o smoke usa channel "chrome" e agente falso. O passo do e-mail
+      # grava a senha no cofre do sistema, entao no Linux o e2e tambem roda com o chaveiro da sessao.
+      - name: e2e (macOS)
+        if: runner.os == 'macOS'
+        run: npm run e2e
+      - name: e2e (Linux, com chaveiro de sessao)
+        if: runner.os == 'Linux'
+        run: dbus-run-session -- sh -c 'printf senha-do-ci | gnome-keyring-daemon --unlock --components=secrets >/dev/null; npm run e2e'
+      - run: npm run test:sh
+      - name: Instalar e desinstalar (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          ./service/install.sh
+          test -d "$HOME/Applications/Syntax Routines.app"
+          plutil -lint "$HOME/Library/LaunchAgents/br.com.syntaxlab.syntax-routines.plist"
+          plutil -lint "$HOME/Applications/Syntax Routines.app/Contents/Info.plist"
+          ./service/uninstall.sh
+          test ! -f "$HOME/Library/LaunchAgents/br.com.syntaxlab.syntax-routines.plist"
+          test ! -d "$HOME/Applications/Syntax Routines.app"
+      # O runner do Linux pode nao ter sessao de usuario do systemd; sem ela, so a unit gerada e verificada.
+      - name: Instalar e desinstalar (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo loginctl enable-linger "$USER" || true
+          export XDG_RUNTIME_DIR="/run/user/$(id -u)"
+          if systemctl --user show-environment >/dev/null 2>&1; then
+            ./service/install.sh
+            systemctl --user is-active syntax-routines.service
+            ./service/uninstall.sh
+            test ! -f "$HOME/.config/systemd/user/syntax-routines.service"
+          else
+            echo "sem sessao systemd de usuario neste runner: verificando so a unit gerada"
+            ./service/install.sh --print-unit > "$RUNNER_TEMP/syntax-routines.service"
+            systemd-analyze --user verify "$RUNNER_TEMP/syntax-routines.service"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: e2e-screenshots-${{ matrix.os }}
+          path: e2e/.output/*.png
+          if-no-files-found: ignore
+
   secrets:
     name: gitleaks
     runs-on: ubuntu-latest

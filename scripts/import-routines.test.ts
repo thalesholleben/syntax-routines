@@ -59,7 +59,7 @@ function readNames(): string[] {
 const script15 = {
   name: "Fila do Instagram",
   agentKind: "SCRIPT",
-  directory: "ferramentas\\instagram",
+  directory: "ferramentas/instagram",
   model: null,
   effort: "",
   timeoutMinutes: 20,
