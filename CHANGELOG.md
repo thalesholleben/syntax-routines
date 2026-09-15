@@ -7,6 +7,11 @@ commit on `main`.
 
 ### Added
 
+- **Operations dashboard.** A third screen with a clickable 24-hour schedule by executor,
+  next occurrence, live queue and capacity, 24-hour/7-day/30-day history, error rate,
+  average duration, activity chart and failure ranking with direct access to run logs.
+  Read-only aggregates include the whole period and keep skipped/canceled runs separate.
+
 - **E-mail setup from Settings.** A dialog for Gmail (app password) or any SMTP server, the sending
   address and the recipient; saving tests the connection before writing anything. A badge shows
   Connected, Failed with the reason (wrong password, server not found, TLS, connection) or Not

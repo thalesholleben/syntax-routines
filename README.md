@@ -43,6 +43,11 @@ no support channel with a deadline; see [SUPPORT.md](SUPPORT.md).
 
 ## What it does
 
+- **Operations dashboard.** See the next 24 hours by executor, current runs and queue,
+  success and failure counts, error rate, average duration and the routines that need
+  attention. Select a time slot to explore its events or open a run log directly.
+  History windows: 24 hours, 7 days and 30 days. [Metric definitions](docs/features/dashboard.md).
+
 - **Three kinds of routine.** Claude Code and Codex receive a prompt and run with full access in
   the chosen directory, with the model and effort you set. **Script** receives one command line
   (as you would type it in cmd) and runs in the chosen directory, without a window; exit code 0

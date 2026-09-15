@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { CalendarClock, LogOut, Settings as SettingsIcon } from "lucide-react";
+import { CalendarClock, LayoutDashboard, LogOut, Settings as SettingsIcon } from "lucide-react";
 
 import { LanguageSwitch } from "./components/LanguageSwitch";
 import { Logo } from "./components/Logo";
@@ -10,11 +10,13 @@ import { cn } from "./lib/cn";
 import { LoginPage } from "./pages/LoginPage";
 import { RoutinesPage } from "./pages/RoutinesPage";
 import { SettingsPage } from "./pages/SettingsPage";
+import { DashboardPage } from "./pages/DashboardPage";
 import type { AuthState } from "./types";
 
-type Tab = "routines" | "settings";
+type Tab = "dashboard" | "routines" | "settings";
 
 const NAV: { id: Tab; icon: typeof CalendarClock }[] = [
+  { id: "dashboard", icon: LayoutDashboard },
   { id: "routines", icon: CalendarClock },
   { id: "settings", icon: SettingsIcon }
 ];
@@ -118,7 +120,7 @@ export function App() {
               >
                 <Icon aria-hidden className="size-5" />
               </span>
-              {item.id === "routines" ? m.navRoutines : m.navSettings}
+              {item.id === "dashboard" ? m.navDashboard : item.id === "routines" ? m.navRoutines : m.navSettings}
             </button>
           );
         })}
@@ -138,7 +140,7 @@ export function App() {
       </nav>
 
       <main className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
-        {tab === "routines" ? <RoutinesPage onOpenSettings={() => setTab("settings")} /> : <SettingsPage onLogout={() => void logout()} />}
+        {tab === "dashboard" ? <DashboardPage /> : tab === "routines" ? <RoutinesPage onOpenSettings={() => setTab("settings")} /> : <SettingsPage onLogout={() => void logout()} />}
       </main>
     </div>
   );

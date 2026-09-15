@@ -39,6 +39,11 @@ suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
 
 ## O que ele faz
 
+- **Painel de operação.** Próximas 24 horas por executor, execuções e fila atuais,
+  sucessos, falhas, taxa de erro, duração média e rotinas que precisam de atenção.
+  Clique em uma faixa da agenda para ver os eventos ou abra o log de uma execução.
+  Histórico de 24 horas, 7 dias ou 30 dias. [Definições das métricas](docs/features/dashboard.md).
+
 - **Três tipos de rotina.** Claude Code e Codex recebem um prompt e rodam com acesso total no
   diretório escolhido, com o modelo e o esforço que você definiu. **Script** recebe uma linha
   de comando (como você digitaria no cmd) e roda no diretório escolhido, sem janela; código de

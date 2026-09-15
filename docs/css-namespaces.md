@@ -19,3 +19,9 @@ Classes próprias, todas utilitárias (`@layer utilities` em `client/src/index.c
 | `stagger` | entrada escalonada da lista de rotinas |
 
 Todas respeitam `prefers-reduced-motion` pelo bloco no fim do arquivo.
+
+## Dashboard
+
+`sr-dashboard` e filhos `sr-dashboard__*` pertencem a `pages/DashboardPage.tsx` e
+`pages/dashboard.css`. Modificador `is-filled` só nas vagas ocupadas. Estados de
+gráfico usam `data-tone` e seleção usa `aria-pressed`. Sem animação contínua nova.

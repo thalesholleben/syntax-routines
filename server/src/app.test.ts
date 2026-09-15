@@ -201,6 +201,7 @@ const PROTECTED_ROUTES: [string, string][] = [
   ["GET", "/api/runs/1"],
   ["POST", "/api/runs/1/cancel"],
   ["GET", "/api/status"],
+  ["GET", "/api/dashboard"],
   ["GET", "/api/rota-inexistente"]
 ];
 
@@ -269,6 +270,21 @@ describe("rotas publicas", () => {
 });
 
 describe("com sessao", () => {
+  it("dashboard validates its window and returns a read-only serialized snapshot", async () => {
+    const cookie = await sessionWithRoot();
+    const created = await request("POST", "/api/routines", { cookie, body: scriptBody() });
+    expect(created.status).toBe(201);
+    const response = await request("GET", "/api/dashboard?hours=168", { cookie });
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({ hours: 168, routineCount: 1, enabledCount: 1, running: 0, queued: 0 });
+    expect(response.body.horizon).toHaveLength(24);
+    expect(response.body.summary.averageMs).toBeNull();
+    expect(response.body).not.toHaveProperty("settings");
+    expect(JSON.stringify(response.body)).not.toContain("cmd /c echo oi");
+    expect(runnerCalls + scriptCalls).toBe(0);
+    expect((await request("GET", "/api/dashboard?hours=999999", { cookie })).status).toBe(400);
+    expect((await request("GET", "/api/dashboard?hours=", { cookie })).status).toBe(400);
+  });
   it("configura, cria, lista, edita, executa agora, cancela e exclui rotina", async () => {
     const cookie = await sessionWithRoot();
     expect((await request("GET", "/api/settings/directories", { cookie })).body.directories).toEqual([root, path.join(root, "projeto")]);

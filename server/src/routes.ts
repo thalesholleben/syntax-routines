@@ -31,6 +31,7 @@ import {
   verifyPassword
 } from "./auth";
 import type { Db } from "./db";
+import { readDashboard } from "./dashboard";
 import { checkDirectory, listDirectories } from "./directories";
 import { DEFAULT_LANGUAGE, LANGUAGES, LocalizedError, messages, type Language, type Messages, type TextKey } from "./i18n";
 import type { MailService } from "./mailer";
@@ -368,6 +369,11 @@ export function createProtectedRouter({
 
   router.get("/routines", (req, res) => {
     res.json({ routines: listRoutines(db, now(), readSettings(db).rootDirectory, req.language) });
+  });
+
+  router.get("/dashboard", (req, res) => {
+    const { hours } = parse(z.object({ hours: z.enum(["24", "168", "720"]).default("24") }), req.query);
+    res.json(readDashboard(db, now(), Number(hours)));
   });
 
   router.post("/routines", (req, res) => {

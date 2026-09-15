@@ -273,6 +273,33 @@ try {
   await card.waitFor();
   check((await page.getByRole("article").count()) === 2, "Limpar filtro devolve as duas rotinas");
 
+  // Dashboard uses the real temporary server and results produced above.
+  await page.getByRole("button", { name: "Painel", exact: true }).click();
+  await page.getByRole("heading", { name: "Centro de operação", exact: true }).waitFor();
+  await page.getByRole("heading", { name: "Horizonte de 24 horas" }).waitFor();
+  const dashboard = await page.evaluate(() => fetch("/api/dashboard").then(response => response.json()));
+  check(dashboard.summary.failed >= 1 && dashboard.summary.succeeded >= 1, "painel agrega sucessos e falhas reais do smoke");
+  await page.locator(".sr-dashboard__failures").getByRole("button", { name: /Abrir log/ }).first().click();
+  await page.getByRole("dialog", { name: /Execução/ }).waitFor();
+  await page.keyboard.press("Escape");
+  await page.locator(".sr-dashboard__lane button").first().click();
+  await page.getByRole("heading", { name: "Eventos da faixa selecionada" }).waitFor();
+  await page.getByRole("button", { name: "Todas as faixas" }).click();
+  await page.getByRole("combobox", { name: "Período do histórico" }).selectOption("168");
+  await page.waitForFunction(() => document.querySelector('.sr-dashboard__heading .sr-dashboard__eyebrow')?.textContent === '7 dias');
+  await page.getByRole("button", { name: "English", exact: true }).click();
+  await page.getByRole("heading", { name: "Operations center" }).waitFor();
+  await page.getByRole("heading", { name: "24-hour horizon" }).waitFor();
+  check(true, "dashboard navega por faixa, período, log e idioma");
+  await page.getByRole("button", { name: "Português", exact: true }).click();
+  for (const width of [1280, 768, 360]) {
+    await page.setViewportSize({ width, height: 1000 });
+    await page.screenshot({ path: path.join(outputDir, `dashboard-${width}.png`), fullPage: true });
+    check(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `dashboard ${width}px sem overflow da página`);
+  }
+  await page.getByRole("button", { name: "Rotinas", exact: true }).click();
+  await scriptCard.waitFor();
+
   // 6. mobile sem rolagem horizontal
   await page.setViewportSize({ width: 360, height: 800 });
   const hasOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
