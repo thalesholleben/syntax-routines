@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/assets/readme-banner.pt-BR.svg" width="100%" alt="Syntax Routines: rotinas agendadas de Claude Code, Codex e scripts no Windows." />
+  <img src="docs/assets/readme-banner.pt-BR.svg" width="100%" alt="Syntax Routines: rotinas agendadas de Claude Code, Codex e scripts no Windows, macOS e Linux." />
 </p>
 
 <h1 align="center">Syntax Routines</h1>
@@ -18,6 +18,7 @@
   <a href="https://github.com/thalesholleben/syntax-routines/actions/workflows/ci.yml"><img src="https://github.com/thalesholleben/syntax-routines/actions/workflows/ci.yml/badge.svg" alt="CI" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/licença-MIT-1e9dc8?style=flat-square&amp;labelColor=171717" alt="Licença MIT" /></a>
   <a href="#pré-requisitos"><img src="https://img.shields.io/badge/Windows-10%20%7C%2011-a0a29a?style=flat-square&amp;labelColor=171717" alt="Windows 10 ou 11" /></a>
+  <a href="#pré-requisitos"><img src="https://img.shields.io/badge/macOS-13%2B%20(beta)-a0a29a?style=flat-square&amp;labelColor=171717" alt="macOS 13 ou mais novo, beta" /></a>
   <a href="#pré-requisitos"><img src="https://img.shields.io/badge/Node.js-24.13%2B-a0a29a?style=flat-square&amp;labelColor=171717" alt="Node.js 24.13 ou mais novo" /></a>
   <a href="skills/README.md"><img src="https://img.shields.io/badge/skill-Claude%20Code%20%2B%20Codex-1e9dc8?style=flat-square&amp;labelColor=171717" alt="Skill para Claude Code e Codex" /></a>
 </p>
@@ -34,8 +35,14 @@ Em uso diário desde 14/09/2026, com sete rotinas migradas do Agendador de Taref
 (esteiras de publicação, resumos diários e conferência de backup). A versão atual é a 0.1. O que
 está verificado é o que os gates provam a cada commit: a suíte do vitest (agendador sobre um
 SQLite real, migração, runner com CLIs falsos e scripts reais, HTTP, CLI), o smoke no Chrome com
-agente falso, os testes de PowerShell e o gitleaks, tudo em `windows-latest`. Não há canal de
-suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
+agente falso, os testes de shell e de PowerShell e uma instalação de verdade, em `windows-latest`,
+`macos-latest` e `ubuntu-latest`, mais o gitleaks no histórico.
+
+**O Windows é a plataforma de uso diário. O macOS está em beta e o Linux é experimental**: tudo que
+uma máquina de CI consegue provar está verde nos dois, mas ninguém rodou ainda num Mac de verdade,
+com um ciclo completo de login. O que falta conferir, e como conferir se você tem um Mac, está em
+[docs/runbooks/macos-primeira-execucao.md](docs/runbooks/macos-primeira-execucao.md). Não há canal
+de suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
 
 ## O que ele faz
 
@@ -46,8 +53,8 @@ suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
 
 - **Três tipos de rotina.** Claude Code e Codex recebem um prompt e rodam com acesso total no
   diretório escolhido, com o modelo e o esforço que você definiu. **Script** recebe uma linha
-  de comando (como você digitaria no cmd) e roda no diretório escolhido, sem janela; código de
-  saída 0 conclui, qualquer outro é falha.
+  de comando (como você digitaria no terminal: cmd no Windows, `sh` no macOS e no Linux) e roda no
+  diretório escolhido, sem janela; código de saída 0 conclui, qualquer outro é falha.
 - **Hora fixa ou intervalo.** "Seg a Sex às 09:00" ou "a cada 15 min" (de 5 min a 12 h) nos dias
   marcados, na grade alinhada à meia-noite.
 - **PC desligado no horário.** Cada rotina de hora fixa escolhe "Pular esta vez" ou "Executar ao
@@ -91,14 +98,16 @@ descartável; nenhuma rotina real aparece aqui. As mesmas telas em inglês estã
 
 ## Pré-requisitos
 
-- Windows 10 ou 11.
+- Windows 10 ou 11, macOS 13 ou mais novo (beta), ou Linux com sessão `systemd --user` (experimental).
 - Node.js 24.13 ou mais novo.
-- `claude` e `codex` instalados e autenticados no seu usuário do Windows (só para rotinas de agente).
+- `claude` e `codex` instalados e autenticados no seu usuário (só para rotinas de agente).
 - Chrome ou Edge, para o atalho em modo app (opcional).
+- Só no Linux: um chaveiro de sessão (`libsecret-tools` com GNOME Keyring ou KWallet) para salvar a
+  senha do e-mail pelo painel; sem ele, o caminho do `.env` continua valendo.
 
 ## Instalação
 
-Em um PowerShell comum, na pasta do projeto (não precisa de administrador):
+Windows, em um PowerShell comum, na pasta do projeto (não precisa de administrador):
 
 ```powershell
 git clone https://github.com/thalesholleben/syntax-routines.git
@@ -106,27 +115,38 @@ cd syntax-routines
 .\service\install.ps1 -Build
 ```
 
-O script instala as dependências, gera o build, registra a tarefa agendada `SyntaxRoutines`
-(sobe no logon do seu usuário, sem janela, reinicia se cair) e cria o atalho `Syntax Routines`
-na área de trabalho. No primeiro acesso você cria a senha do painel; depois, em Ajustes, define
-a pasta mãe e clica em **Configurar e-mail**.
+macOS e Linux, em um terminal (não precisa de `sudo`):
+
+```bash
+git clone https://github.com/thalesholleben/syntax-routines.git
+cd syntax-routines
+./service/install.sh --build
+```
+
+O script instala as dependências, gera o build e registra o serviço que sobe no seu login, sem
+janela e reiniciando se cair: tarefa agendada no Windows, LaunchAgent no macOS, unit
+`systemd --user` no Linux. Ele também cria o atalho `Syntax Routines` (área de trabalho no Windows,
+`~/Applications` no macOS, menu de aplicativos no Linux). No primeiro acesso você cria a senha do
+painel; depois, em Ajustes, define a pasta mãe e clica em **Configurar e-mail**.
 
 - **Abre como app, não como aba.** O atalho chama o Chrome (ou o Edge) em `--app=`, então a
   janela vem sem barra de endereço e com o ícone do Syntax Routines na barra de tarefas.
 - **E-mail.** Em Ajustes, **Configurar e-mail** abre um modal: Gmail (com senha de app, que exige
   a verificação em duas etapas) ou outro servidor SMTP, o e-mail que envia e quem recebe os avisos.
   Ao salvar, o app testa a conexão antes; o selo mostra Conectado, Falhou com o motivo ou Não
-  testado, e os avisos de verdade também o atualizam. A senha fica cifrada com a DPAPI do Windows
-  para o seu usuário e nunca volta pela API nem pelo CLI. O botão "Enviar e-mail de teste" usa o
-  mesmo caminho do aviso de falha.
+  testado, e os avisos de verdade também o atualizam. A senha vai para o cofre do seu sistema, nunca
+  em claro no banco: DPAPI no Windows, Chaves (Keychain) no macOS, Secret Service no Linux. Ela nunca
+  volta pela API nem pelo CLI. O botão "Enviar e-mail de teste" usa o mesmo caminho do aviso de falha.
 - **E-mail pelo `.env` (opcional).** `SMTP_HOST`, `SMTP_PORT`, `SMTP_SECURE`, `SMTP_USER`,
   `SMTP_PASS`, `MAIL_FROM_EMAIL` e `MAIL_FROM_NAME` continuam valendo (copie o `.env.example` para
-  `.env`); a conta salva no painel tem prioridade. Mudou o `.env`: rode `install.ps1` de novo, sem
-  `-Build`.
+  `.env`); a conta salva no painel tem prioridade. Mudou o `.env`: rode `install.ps1` (ou
+  `install.sh`) de novo, sem `-Build`/`--build`.
 - O app só roda com o seu usuário logado: se o PC ligar e ninguém entrar, as rotinas esperam o
   logon. Tela bloqueada não interrompe nada.
-- Remover: `.\service\uninstall.ps1`. Os dados em `data/` ficam.
-- Sem instalar a tarefa: `npm install`, `npm run build` e depois `start.cmd`.
+- Remover: `.\service\uninstall.ps1` ou `./service/uninstall.sh`. Os dados em `data/` ficam.
+- Sem instalar o serviço: `npm install`, `npm run build` e depois `start.cmd` (ou `./start.sh`).
+- No macOS e no Linux o serviço é registrado com o `PATH` do terminal onde você rodou o script: é
+  assim que ele acha `node`, `claude` e `codex`. Instalou algum deles depois? Rode o script de novo.
 
 ## Deixar um agente cuidar das rotinas
 
@@ -140,8 +160,8 @@ as rotinas, sugere agendar o que você repete e cadastra depois que você autori
 .\routines.cmd add rotina.json      # cria (o agente só faz isso depois do seu sim)
 ```
 
-`list`, `show`, `settings`, `runs` e `log` leem; `add`, `edit`, `enable`, `disable`, `run-now` e
-`rm` escrevem. Aceita `--json` nas leituras, usa a mesma validação das rotas da API e não pede a
+No macOS e no Linux os mesmos comandos rodam por `./routines.sh`. `list`, `show`, `settings`,
+`runs` e `log` leem; `add`, `edit`, `enable`, `disable`, `run-now` e `rm` escrevem. Aceita `--json` nas leituras, usa a mesma validação das rotas da API e não pede a
 senha do painel. `routines.cmd --help` mostra tudo.
 
 A skill é o que faz o agente usar isso sozinho, e é ela que proíbe criar, alterar ou apagar
@@ -164,11 +184,13 @@ Agendador do Windows), escreva um JSON no formato de
 `directory` relativo à pasta mãe, recusa o arquivo inteiro se qualquer item for inválido e pula
 rotina com nome já existente.
 
+No macOS e no Linux, `npm run import -- caminho/para/rotinas.json`.
+
 Migrando uma tarefa do Agendador do Windows: cadastre a rotina de script com o mesmo comando e
 diretório, execute uma vez por "Executar agora", **desative** a tarefa antiga
 (`Disable-ScheduledTask`) para não rodar em dobro, e só a remova depois de um ciclo verde.
 
-**Conferir um backup.** `scripts/check-backup.ps1` lê um `latest.json` de backup (campos
+**Conferir um backup (só Windows).** `scripts/check-backup.ps1` lê um `latest.json` de backup (campos
 `status`, `started_at`, `error`) e sai com 1 quando o último backup falhou, está velho demais ou
 travou em `running`. Cadastrado como rotina de script diária, vira aviso por e-mail quando o
 backup não funcionou:
@@ -196,9 +218,9 @@ que parte desse trabalho aconteça sem ninguém olhando.
 | --- | --- | --- |
 | Painel | React 19, Vite, Tailwind 4 | Login, rotinas, histórico, ajustes |
 | API e agendador | Express 5, `node:sqlite` | Sessão, validação (zod), tick de 30 s, fila, retry, retenção |
-| Executores | `claude`, `codex`, `cmd.exe` | Prompt por stdin com bypass de permissões, ou linha de comando |
-| E-mail | nodemailer, DPAPI do Windows | Aviso de falha pela conta SMTP salva em Ajustes (ou do `.env`) |
-| Instalação | PowerShell, Agendador do Windows | Tarefa no logon, sem elevação, atalho em modo app |
+| Executores | `claude`, `codex`, `cmd.exe` ou `/bin/sh` | Prompt por stdin com bypass de permissões, ou linha de comando; o filho roda em grupo de processos próprio, então o timeout mata a árvore inteira |
+| E-mail | nodemailer + cofre do sistema (DPAPI, Keychain, Secret Service) | Aviso de falha pela conta SMTP salva em Ajustes (ou do `.env`) |
+| Instalação | PowerShell + Agendador, ou shell + launchd / `systemd --user` | Serviço no login, sem elevação, atalho em modo app |
 | Agente | CLI (`dist/routines.mjs`) + skill | Leitura e escrita pelo mesmo caminho das rotas, sem senha |
 
 O agendador materializa as ocorrências desde o último tick, aplica a política de PC desligado
@@ -211,10 +233,11 @@ e despacha com um claim atômico (uma execução por rotina, teto global de para
 | --- | --- |
 | `npm run dev` | API com reload (`--dev`) + painel Vite em http://127.0.0.1:5190 |
 | `npm run typecheck` | TypeScript do servidor, do cliente e de `scripts/` |
-| `npm test` | vitest: agenda, agendador com SQLite real, migração, runner com `.cmd` falsos e scripts reais, e-mail com transporte falso e DPAPI de verdade, HTTP, subida, importação e CLI |
+| `npm test` | vitest: agenda, agendador com SQLite real, migração, runner com CLIs falsos e scripts reais (inclusive o grupo de processos no macOS e no Linux), e-mail com transporte falso e o cofre real do sistema, HTTP, subida, importação e CLI |
 | `npm run build` | typecheck + `dist/client` + `dist/server/index.mjs` + `dist/routines.mjs` |
 | `npm run e2e` | smoke no Chrome instalado com agente falso, script real e um SMTP falso local (precisa do build; capturas em `e2e/.output`) |
-| `npm run test:ps1` | `service/listener.test.ps1` (processos reais numa porta livre, sem admin) e `scripts/check-backup.test.ps1` |
+| `npm run test:ps1` | Windows: `service/listener.test.ps1` (processos reais numa porta livre, sem admin) e `scripts/check-backup.test.ps1` |
+| `npm run test:sh` | macOS e Linux: `service/listener.test.sh`, os mesmos casos com processos reais |
 | `npm run skills:check` | confere os pacotes de skill contra o CLI de verdade (comando documentado que não existe reprova) |
 | `npm run routines -- <cmd>` | o CLI em desenvolvimento, sem precisar do build |
 | `node scripts/screenshots.mjs` | regera as imagens deste README numa instalação descartável (`--lang en` para as do README em inglês) |
@@ -222,7 +245,9 @@ e despacha com um claim atômico (uma execução por rotina, teto global de para
 
 Testes e e2e usam só pastas temporárias, não tocam em `data/`, não chamam Claude ou Codex de
 verdade e não mandam e-mail (o e2e limpa `SMTP_*` do ambiente, aponta `ENV_FILE` para um
-arquivo vazio e configura o e-mail contra um SMTP falso em 127.0.0.1). O CI roda tudo isso em `windows-latest` e passa o gitleaks no histórico.
+arquivo vazio e configura o e-mail contra um SMTP falso em 127.0.0.1). O CI roda tudo isso em
+`windows-latest`, `macos-latest` e `ubuntu-latest`, instala e desinstala o serviço de verdade no
+macOS, e passa o gitleaks no histórico.
 
 ## Modelo de segurança
 
@@ -231,12 +256,12 @@ arquivo vazio e configura o e-mail contra um SMTP falso em 127.0.0.1). O CI roda
   `Origin` em toda a API.
 - Quem tem a senha do painel, ou acesso à pasta do app, dispara Claude Code e Codex com
   `--dangerously-skip-permissions` e comandos arbitrários no PC, dentro da pasta mãe. O painel é
-  uma superfície de execução: trate a senha como a senha do próprio Windows.
+  uma superfície de execução: trate a senha como a senha da sua conta no computador.
 - Diretório sempre por caminho real: junction ou symlink para fora da pasta mãe é recusado, e
   pastas do sistema são bloqueadas.
-- O único segredo é a senha do SMTP. Salva em Ajustes, ela é cifrada com a DPAPI do Windows
-  (usuário atual) antes de chegar ao banco e nunca sai do servidor; no `.env`, fica fora do git. O
-  destinatário dos avisos fica no banco.
+- O único segredo é a senha do SMTP. Salva em Ajustes, ela vai para o cofre do sistema antes de
+  chegar ao banco (DPAPI no Windows, Chaves no macOS, Secret Service no Linux) e nunca sai do
+  servidor; no `.env`, fica fora do git. O destinatário dos avisos fica no banco.
 
 Relato de vulnerabilidade: [SECURITY.md](SECURITY.md). Não abra issue pública para isso.
 
@@ -247,7 +272,7 @@ server/src/   API Express 5, agendador, runner dos CLIs e de scripts, e-mail, ba
 client/src/   painel React 19 + Tailwind 4 (Login, Rotinas, Ajustes)
 scripts/      CLI do agente, importação, skill (install e check), check-backup.ps1, capturas e ícones
 skills/       pacotes de skill do Claude Code e do Codex, instaláveis daqui
-service/      install.ps1 e uninstall.ps1 da tarefa agendada
+service/      instalar/desinstalar o serviço de login: .ps1 (Windows) e .sh (macOS, Linux)
 e2e/          smoke no Chrome e agente falso
 public/       manifesto do modo app, marca e ícones
 docs/         exemplos, imagens do README e registro de namespaces CSS

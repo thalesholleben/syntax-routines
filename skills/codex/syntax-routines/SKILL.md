@@ -26,19 +26,35 @@ Duas regras, nesta ordem:
 
 O CLI mora dentro da instalação. Descubra o caminho uma vez por conversa:
 
+Windows:
+
 ```powershell
 (Get-ScheduledTask -TaskName SyntaxRoutines -ErrorAction SilentlyContinue).Actions[0].WorkingDirectory
 ```
 
-Com o caminho, todos os comandos são `<projeto>\routines.cmd <comando>`. Se a tarefa não
-existir ou o comando não responder, leia [references/setup.md](references/setup.md) e trate
-o app como não instalado: não invente outro agendador, não crie tarefa no Agendador do
-Windows por fora e não escreva no banco na mão.
+macOS:
+
+```bash
+plutil -extract WorkingDirectory raw ~/Library/LaunchAgents/br.com.syntaxlab.syntax-routines.plist
+```
+
+Linux:
+
+```bash
+systemctl --user show -p WorkingDirectory --value syntax-routines.service
+```
+
+Com o caminho, os comandos são `<projeto>\routines.cmd <comando>` no Windows e
+`<projeto>/routines.sh <comando>` no macOS e no Linux. Se o serviço não existir ou o comando
+não responder, leia [references/setup.md](references/setup.md) e trate o app como não
+instalado: não invente outro agendador, não registre tarefa, LaunchAgent ou unit do systemd
+por fora e não escreva no banco na mão.
 
 ## O que o app faz por você
 
 - **Três executores:** `CLAUDE` e `CODEX` recebem um prompt e rodam no diretório escolhido;
-  `SCRIPT` recebe uma linha de comando (como no cmd) e o código de saída decide.
+  `SCRIPT` recebe uma linha de comando (como no terminal: cmd no Windows, `sh` no macOS e no
+  Linux) e o código de saída decide.
 - **Agenda:** dias da semana com hora fixa, ou "a cada N minutos" nesses dias.
 - **PC desligado no horário:** cada rotina escolhe pular ou executar ao ligar.
 - **Falhou, avisa:** toda execução que termina em falha vira e-mail para o endereço
@@ -53,7 +69,8 @@ Ofereça assim que aparecer um destes sinais, sem esperar ele pedir:
 - disse "toda semana", "todo dia", "toda segunda", "de hora em hora", "sempre que";
 - pediu a mesma coisa pela segunda vez na semana (relatório, varredura, publicação, limpeza);
 - terminou algo que só tem valor se for repetido (um resumo, uma conferência, um lembrete);
-- existe uma tarefa no Agendador do Windows ou um `.ps1` que ele lembra de rodar na mão;
+- existe uma tarefa no Agendador do Windows, um cron, um launchd ou um `.ps1`/`.sh` que ele
+  lembra de rodar na mão;
 - algo falhou em silêncio e ninguém soube: uma rotina de conferência avisaria por e-mail.
 
 Uma sugestão cabe em quatro linhas: o que rodaria, quando, com qual executor, e o que ela

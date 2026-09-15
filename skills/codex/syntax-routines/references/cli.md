@@ -3,11 +3,17 @@
 Leia antes do primeiro comando. O CLI lê e escreve o mesmo banco do app, com a mesma
 validação das rotas da API: o que ele recusa, o painel também recusaria.
 
-`<projeto>` é a pasta que você descobriu em [setup.md](setup.md). Todos os exemplos usam o
-wrapper `routines.cmd`, que já chama o build certo:
+`<projeto>` é a pasta que você descobriu em [setup.md](setup.md). Os exemplos usam o wrapper
+`routines.cmd`, que já chama o build certo:
 
 ```powershell
 & "<projeto>\routines.cmd" list
+```
+
+No macOS e no Linux o wrapper é `routines.sh`, com os mesmos comandos e as mesmas opções:
+
+```bash
+"<projeto>/routines.sh" list
 ```
 
 Sem o build (repositório clonado, app não instalado), o equivalente é

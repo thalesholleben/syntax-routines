@@ -30,6 +30,22 @@ commit on `main`.
   Portuguese and English (`scripts/render-og.mjs`), `SUPPORT.md` and this changelog, preparing the
   repository to go public. README in English with a Brazilian Portuguese version.
 
+### Added
+
+- **macOS (beta) and Linux (experimental).** `service/install.sh` registers a LaunchAgent (macOS) or a
+  `systemd --user` unit (Linux) that starts at login, plus the app-mode shortcut; `routines.sh` and
+  `start.sh` mirror the `.cmd` launchers. The SMTP password goes to the system vault of each platform:
+  DPAPI, Keychain (`security`) or Secret Service (`secret-tool`), always over stdin, never in argv. CI
+  now runs typecheck, tests, build, e2e, the shell tests and a real install on `macos-latest` and
+  `ubuntu-latest`. What a CI machine cannot prove is listed in
+  [docs/runbooks/macos-primeira-execucao.md](docs/runbooks/macos-primeira-execucao.md).
+
+### Fixed
+
+- **Timeout and cancel now kill the whole tree on macOS and Linux.** The child runs in its own process
+  group and the signal goes to the group: before, only the shell died and the command it had started
+  (or the agent's subprocess) kept running.
+
 ### Changed
 
 - Index `runs_ended` on the run end time, so the dashboard refresh reads a slice of `runs` instead

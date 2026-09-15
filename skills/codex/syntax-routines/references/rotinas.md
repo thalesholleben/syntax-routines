@@ -9,7 +9,7 @@ painel de coisas que rodam sem ninguém olhar.
 | --- | --- |
 | Já existe script, `.ps1`, `.py` ou comando que faz o trabalho | `SCRIPT`. Mais barato, mais previsível, sem cota |
 | O trabalho exige ler, decidir, escrever texto ou mexer em código | `CLAUDE` ou `CODEX` |
-| O trabalho já roda no Agendador do Windows | `SCRIPT` com o mesmo comando e diretório |
+| O trabalho já roda no Agendador do Windows, no cron ou no launchd | `SCRIPT` com o mesmo comando e diretório |
 
 Agente é o caro e o imprevisível: use quando a decisão for o trabalho. Uma esteira que só
 chama scripts em ordem é rotina de script, mesmo que um dos passos chame um agente por
@@ -79,7 +79,7 @@ Se a resposta for "fica no log", não sugira.
   apagar dado de cliente). Agende a preparação, não o disparo.
 - É pedido único, ou a repetição é incerta. Espere a segunda vez.
 - Depende de coisa que o PC não tem: rotina não roda com o PC desligado nem sem o usuário
-  logado no Windows.
+  logado.
 - Já existe rotina parecida. Ajuste a que existe.
 
 ## Depois de criar
