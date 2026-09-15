@@ -59,7 +59,9 @@ None of these commands touches `data/`, calls the real Claude or Codex, or sends
     scheduler. A new CLI command also goes into `skills/*/references/cli.md`, or `npm run skills:check`
     fails.
 14. **E-mail is best-effort and never blocks the queue:** the `notifyFailures` pass runs after dispatch,
-    only for `FAILED` runs of the last 24 h, with 3 attempts. The sending account comes from Settings
+    only for `FAILED` runs of the last 24 h, retrying n² minutes after the failure (1, 4, 9... up to
+    22.8 h, `NOTIFY_MAX_ATTEMPTS`) so an internet outage of hours delays the alert instead of losing
+    it. The sending account comes from Settings
     (`PUT /api/settings/mail`, tested with `verify()` before anything is written) or, without one, from
     `.env` (`process.loadEnvFile` in `index.ts`). The SMTP password saved from the panel exists only
     encrypted with DPAPI (`server/src/secret-store.ts`, key `smtp_pass_dpapi`) and never leaves the

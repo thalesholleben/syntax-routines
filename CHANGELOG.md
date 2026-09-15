@@ -16,11 +16,19 @@ commit on `main`.
   of the sidebar and in Settings. The choice is kept in the browser and in Settings; the API answers
   in the panel's language (`Accept-Language`), and run notes and alert e-mails follow Settings.
   Dictionaries are typed against each other (`client/src/i18n.tsx`, `server/src/i18n.ts`).
+- **Search and type filter on the Routines header**: by name (accent and case insensitive) and by
+  Claude Code, Codex or Script, with the shown/total count and a Clear filter button.
 - Landing page at [routines.syntaxlab.com.br](https://routines.syntaxlab.com.br) (Portuguese, with
   English at `/en/`); source under `site/`.
 - Banner, screenshots with demo data (`scripts/screenshots.mjs`, `--lang en`), Open Graph images in
   Portuguese and English (`scripts/render-og.mjs`), `SUPPORT.md` and this changelog, preparing the
   repository to go public. README in English with a Brazilian Portuguese version.
+
+### Changed
+
+- Failure alerts that could not be sent are retried n² minutes after the failure (1, 4, 9... up to
+  22.8 h) instead of three times in five minutes: an internet outage of a few hours delays the
+  alert instead of losing it. The "server not found" reason now also says to check the internet.
 
 ## 0.1.0 · 2026-09-14
 

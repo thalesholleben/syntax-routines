@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { AlertTriangle, CalendarClock, FolderTree, History as HistoryIcon, Pencil, Play, Plus, Square, Trash2 } from "lucide-react";
+import type { ChangeEvent } from "react";
+import { AlertTriangle, CalendarClock, FolderTree, History as HistoryIcon, Pencil, Play, Plus, Search, Square, Trash2 } from "lucide-react";
 
 import { ProviderMark } from "../components/Logo";
 import { PageHeader } from "../components/PageHeader";
@@ -15,6 +16,23 @@ import type { AgentKind, ExecutorKind, RoutineDto, RunDto, SettingsResponse, Sta
 const IDLE_POLL_MS = 5000;
 const ACTIVE_POLL_MS = 2000;
 const AGENT_TONE: Record<ExecutorKind, string> = { CLAUDE: "claude", CODEX: "codex", SCRIPT: "script" };
+const KIND_OPTIONS: ExecutorKind[] = ["CLAUDE", "CODEX", "SCRIPT"];
+
+type KindFilter = ExecutorKind | "";
+
+/** Busca sem acento nem caixa: "instagram" acha "Instagram SyntaxLab: fila", "conferencia" acha "Conferência". */
+function fold(text: string): string {
+  return text
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+export function matchesFilter(routine: Pick<RoutineDto, "name" | "agentKind">, query: string, kind: KindFilter): boolean {
+  if (kind && routine.agentKind !== kind) return false;
+  const needle = fold(query.trim());
+  return needle === "" || fold(routine.name).includes(needle);
+}
 
 export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void }) {
   const { m, language } = useI18n();
@@ -26,6 +44,8 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
   const [actionError, setActionError] = useState<string | null>(null);
   const [editing, setEditing] = useState<{ routine: RoutineDto | null } | null>(null);
   const [outputRunId, setOutputRunId] = useState<number | null>(null);
+  const [query, setQuery] = useState("");
+  const [kind, setKind] = useState<KindFilter>("");
 
   const load = useCallback(async () => {
     try {
@@ -87,9 +107,23 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
     : [];
   const hasRoot = Boolean(meta?.settings.rootDirectory);
 
+  // O filtro so muda o que aparece: contagem do subtitulo, polling e proxima execucao seguem olhando todas.
+  const isFiltering = query.trim() !== "" || kind !== "";
+  const visible = routines?.filter((routine) => matchesFilter(routine, query, kind)) ?? [];
+  function clearFilter() {
+    setQuery("");
+    setKind("");
+  }
+
   return (
     <div className="flex h-full flex-col">
-      <PageHeader title={m.navRoutines} subtitle={subtitle} />
+      <PageHeader
+        title={m.navRoutines}
+        subtitle={subtitle}
+        actions={
+          routines !== null && routines.length > 0 ? <RoutineFilter query={query} kind={kind} onQuery={setQuery} onKind={setKind} /> : undefined
+        }
+      />
 
       <div className="flex-1 overflow-y-auto p-3 pb-24 md:p-6 md:pb-6">
         <div className="mx-auto max-w-3xl space-y-3">
@@ -139,7 +173,15 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
             <EmptyState hasRoot={hasRoot} onOpenSettings={onOpenSettings} />
           ) : (
             <div className="stagger space-y-3">
-              {routines.map((routine) => (
+              {isFiltering && (
+                <p role="status" className="flex items-center justify-between gap-2 px-1 text-xs text-[var(--color-fg-subtle)]">
+                  <span>{m.filterCount(visible.length, routines.length)}</span>
+                  <Button size="sm" variant="ghost" onClick={clearFilter}>
+                    {m.clearFilter}
+                  </Button>
+                </p>
+              )}
+              {visible.map((routine) => (
                 <div key={routine.id}>
                   <RoutineCard
                     routine={routine}
@@ -172,6 +214,52 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
         />
       )}
       <RunOutputModal runId={outputRunId} onClose={() => setOutputRunId(null)} />
+    </div>
+  );
+}
+
+/** Busca por nome e tipo, no canto do cabecalho: discreto, some quando nao ha rotina para filtrar. */
+function RoutineFilter({
+  query,
+  kind,
+  onQuery,
+  onKind
+}: {
+  query: string;
+  kind: KindFilter;
+  onQuery: (value: string) => void;
+  onKind: (value: KindFilter) => void;
+}) {
+  const { m } = useI18n();
+  const f = useFormat();
+  const field =
+    "h-8 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-2)]/70 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]";
+  return (
+    <div className="flex items-center gap-1.5">
+      <label className="relative">
+        <span className="sr-only">{m.searchRoutines}</span>
+        <Search aria-hidden className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-[var(--color-fg-subtle)]" />
+        <input
+          type="search"
+          value={query}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => onQuery(event.target.value)}
+          placeholder={m.searchPlaceholder}
+          className={cn(field, "w-36 pl-7 pr-2 placeholder:text-[var(--color-fg-subtle)] sm:w-44")}
+        />
+      </label>
+      <select
+        aria-label={m.filterByType}
+        value={kind}
+        onChange={(event: ChangeEvent<HTMLSelectElement>) => onKind(event.target.value as KindFilter)}
+        className={cn(field, "px-2", kind === "" && "text-[var(--color-fg-muted)]")}
+      >
+        <option value="">{m.allTypes}</option>
+        {KIND_OPTIONS.map((option) => (
+          <option key={option} value={option}>
+            {f.agentLabel[option]}
+          </option>
+        ))}
+      </select>
     </div>
   );
 }

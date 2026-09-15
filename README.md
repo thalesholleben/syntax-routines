@@ -57,8 +57,10 @@ no support channel with a deadline; see [SUPPORT.md](SUPPORT.md).
   directory outside the root folder, app closed mid-run) produces an e-mail with the routine,
   the error and the panel link. Success stays quiet. The sending account is set up in a Settings
   dialog (Gmail with an app password, or any SMTP server), tested on save, with a badge that says
-  Connected or why it failed.
-- **History and log** for every run, in the panel and through the CLI, kept for 30 days.
+  Connected or why it failed. An alert that cannot be sent (the internet is down, say) is retried
+  for up to 24 h, so an outage delays it instead of losing it.
+- **History and log** for every run, in the panel and through the CLI, kept for 30 days. With many
+  routines, the header has a search by name and a filter by type.
 - **English or Portuguese.** A discreet selector on the sign-in screen and at the bottom of the
   sidebar switches the whole panel; the choice also applies to run notes and alert e-mails.
 - **An agent looks after it for you.** The CLI and the skill let Claude Code or Codex read,

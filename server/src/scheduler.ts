@@ -25,7 +25,11 @@ const RESULT_MAX_CHARS = 20_000;
 const ERROR_MAX_CHARS = 8_000;
 /** Falha com mais de 24 h nao gera aviso: cadastrar o e-mail depois nao pode disparar uma avalanche de historico. */
 export const NOTIFY_WINDOW_MS = 24 * 60 * 60_000;
-export const NOTIFY_MAX_ATTEMPTS = 3;
+/**
+ * Envio recusado tenta de novo n² minutos depois da falha (1, 4, 9, 16... ate 22,8 h): uma queda de internet de
+ * algumas horas atrasa o aviso em vez de perde-lo. A 38ª tentativa ja cairia fora da janela de 24 h.
+ */
+export const NOTIFY_MAX_ATTEMPTS = 38;
 const DEFAULT_PANEL_URL = "http://127.0.0.1:4090/";
 
 const REASON_KEY = { limit: "reasonLimit", transient: "reasonTransient", fatal: "reasonFatal" } as const;

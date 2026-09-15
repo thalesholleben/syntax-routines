@@ -53,8 +53,10 @@ suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
   esgotado, diretório fora da pasta mãe, app encerrado no meio) gera um e-mail com a rotina, o
   erro e o link do painel. Sucesso não avisa. A conta que envia é configurada num modal em Ajustes
   (Gmail com senha de app, ou qualquer servidor SMTP), testada ao salvar, com um selo que diz
-  Conectado ou por que falhou.
-- **Histórico e log** de cada execução no painel e pelo CLI, com retenção de 30 dias.
+  Conectado ou por que falhou. Aviso que não conseguiu sair (internet fora, por exemplo) é
+  tentado de novo por até 24 h: a queda atrasa o aviso em vez de perdê-lo.
+- **Histórico e log** de cada execução no painel e pelo CLI, com retenção de 30 dias. Com muitas
+  rotinas, o cabeçalho tem busca pelo nome e filtro por tipo.
 - **Português ou inglês.** Um seletor discreto na tela de login e no pé da barra lateral troca o
   painel inteiro; a escolha vale também para as notas das execuções e para o e-mail de aviso.
 - **Um agente cuida disso por você.** O CLI e a skill deixam o Claude Code ou o Codex consultar,

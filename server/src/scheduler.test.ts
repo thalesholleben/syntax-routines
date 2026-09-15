@@ -674,7 +674,7 @@ describe("aviso por e-mail", () => {
     expect(fake.sent).toHaveLength(1);
   });
 
-  it("envio recusado tenta de novo so depois do backoff e desiste na terceira", async () => {
+  it("envio recusado tenta de novo em n² minutos, sobrevive a horas sem internet e desiste no fim das 24 h", async () => {
     const id = createRoutine(db, scriptInput(), at(1, 0));
     writeSettings(db, { notifyEmail: "dono@example.com" });
     const fake = createFakeMailer();
@@ -682,7 +682,7 @@ describe("aviso por e-mail", () => {
     clock = at(14, 10);
     const runId = failedRun(id, at(14, 10));
 
-    fake.state.failNext = 3;
+    fake.state.failNext = NOTIFY_MAX_ATTEMPTS;
     expect(await scheduler.notifyFailures()).toBe(0);
     expect(notifyState(runId)).toEqual({ notifiedAt: null, notifyAttempts: 1 });
 
@@ -694,13 +694,44 @@ describe("aviso por e-mail", () => {
     expect(await scheduler.notifyFailures()).toBe(0);
     expect(notifyState(runId)).toMatchObject({ notifyAttempts: 2 });
 
-    // Terceira a partir de +4 min; depois dela, desiste.
-    clock = at(14, 14);
-    expect(await scheduler.notifyFailures()).toBe(0);
-    expect(notifyState(runId)).toMatchObject({ notifyAttempts: NOTIFY_MAX_ATTEMPTS });
-    clock = at(14, 30);
+    // Dai em diante, a tentativa n vem n² minutos depois da falha, ate a ultima ainda dentro das 24 h.
+    for (let attempt = 2; attempt < NOTIFY_MAX_ATTEMPTS; attempt += 1) {
+      clock = at(14, 10) + attempt * attempt * MIN - 1;
+      expect(await scheduler.notifyFailures()).toBe(0);
+      expect(notifyState(runId)).toMatchObject({ notifyAttempts: attempt });
+      clock = at(14, 10) + attempt * attempt * MIN;
+      expect(await scheduler.notifyFailures()).toBe(0);
+      expect(notifyState(runId)).toMatchObject({ notifyAttempts: attempt + 1 });
+    }
+    expect(at(14, 10) + (NOTIFY_MAX_ATTEMPTS - 1) ** 2 * MIN).toBeLessThan(at(14, 10) + NOTIFY_WINDOW_MS);
+    clock = at(14, 10) + NOTIFY_WINDOW_MS + MIN;
     expect(await scheduler.notifyFailures()).toBe(0);
     expect(fake.sent).toHaveLength(0);
+  });
+
+  it("aviso preso por uma queda de internet de 4 h sai quando a conexao volta", async () => {
+    const id = createRoutine(db, scriptInput(), at(1, 0));
+    writeSettings(db, { notifyEmail: "dono@example.com" });
+    const fake = createFakeMailer();
+    const { scheduler } = newScheduler(db, { mailer: fake.mailer });
+    const runId = failedRun(id, at(14, 10));
+
+    // Falha as 10:00 e sem internet ate 14:00: as 16 tentativas desse periodo (0, 1, 4, ... 225 min) falham.
+    fake.state.failNext = 16;
+    for (let attempt = 0; attempt < 16; attempt += 1) {
+      clock = at(14, 10) + attempt * attempt * MIN;
+      expect(await scheduler.notifyFailures()).toBe(0);
+    }
+    expect(notifyState(runId)).toMatchObject({ notifiedAt: null, notifyAttempts: 16 });
+
+    // A 17ª cai as 14:16, ja com internet: o aviso sai e nao repete.
+    clock = at(14, 10) + 256 * MIN;
+    expect(await scheduler.notifyFailures()).toBe(1);
+    expect(fake.sent).toHaveLength(1);
+    expect(notifyState(runId)).toMatchObject({ notifiedAt: clock, notifyAttempts: 16 });
+    clock = at(14, 10) + 289 * MIN;
+    expect(await scheduler.notifyFailures()).toBe(0);
+    expect(fake.sent).toHaveLength(1);
   });
 
   it("o tick avisa a falha que o proprio tick produziu (diretorio fora da pasta mae)", async () => {

@@ -259,6 +259,20 @@ try {
   await page.getByRole("button", { name: "Rotinas", exact: true }).click();
   await scriptCard.waitFor();
 
+  // 5d. filtro do cabecalho: busca sem acento nem caixa, filtro por tipo e "Limpar filtro"
+  const search = page.getByRole("searchbox", { name: "Buscar pelo nome" });
+  await search.fill("SCRÍPT");
+  await card.waitFor({ state: "hidden" });
+  check((await page.getByRole("article").count()) === 1 && (await scriptCard.isVisible()), "busca pelo nome ignora acento e caixa");
+  await search.fill("");
+  await page.getByRole("combobox", { name: "Filtrar por tipo" }).selectOption("SCRIPT");
+  await card.waitFor({ state: "hidden" });
+  await page.getByText("1 de 2 rotinas").waitFor();
+  check((await page.getByRole("article").count()) === 1 && (await scriptCard.isVisible()), "filtro por tipo deixa só o script e mostra 1 de 2");
+  await page.getByRole("button", { name: "Limpar filtro" }).click();
+  await card.waitFor();
+  check((await page.getByRole("article").count()) === 2, "Limpar filtro devolve as duas rotinas");
+
   // 6. mobile sem rolagem horizontal
   await page.setViewportSize({ width: 360, height: 800 });
   const hasOverflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth);
