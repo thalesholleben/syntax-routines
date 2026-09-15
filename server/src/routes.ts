@@ -204,8 +204,12 @@ export function readLogTail(file: string): { log: string; logSize: number; isLog
   }
 }
 
+/** Sistema do PC: o painel escolhe por ele o exemplo de comando e o texto do cofre de senha. */
+const PLATFORM = process.platform === "win32" || process.platform === "darwin" || process.platform === "linux" ? process.platform : "other";
+
 function settingsPayload(db: Db, mailer: MailService, language: Language) {
   return {
+    platform: PLATFORM,
     settings: readSettings(db),
     agents: {
       models: MODELS_BY_KIND,
@@ -337,8 +341,8 @@ export function createProtectedRouter({
     res.json(settingsPayload(db, mailer, req.language));
   });
 
-  router.delete("/settings/mail", (req, res) => {
-    mailer.remove();
+  router.delete("/settings/mail", async (req, res) => {
+    await mailer.remove();
     res.json(settingsPayload(db, mailer, req.language));
   });
 

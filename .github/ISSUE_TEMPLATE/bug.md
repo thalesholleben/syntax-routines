@@ -13,7 +13,7 @@ labels: bug
 2.
 
 **Environment**
-- Windows:
+- System (Windows, macOS or Linux) and version:
 - Node.js (`node --version`):
 - Routine kind: Claude Code / Codex / Script
 - Fixed time or interval:

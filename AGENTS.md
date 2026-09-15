@@ -11,7 +11,8 @@ Brazilian Portuguese and English; the CLI output and the agent skill are in Port
 | `npm test` | every code change (vitest; uses only temporary folders) |
 | `npm run build` | before delivering and before the e2e |
 | `npm run e2e` | screen or user-flow change (installed Chrome, fake agent, real script) |
-| `npm run test:ps1` | change in `service/` or `scripts/*.ps1` (real processes, no admin) |
+| `npm run test:ps1` | Windows: change in `service/*.ps1` or `scripts/*.ps1` (real processes, no admin) |
+| `npm run test:sh` | macOS and Linux: change in `service/*.sh` (real processes, no sudo) |
 | `npm run skills:check` | change in the CLI (`scripts/routines-cli.ts`) or in `skills/` |
 
 None of these commands touches `data/`, calls the real Claude or Codex, or sends e-mail.
@@ -35,7 +36,9 @@ None of these commands touches `data/`, calls the real Claude or Codex, or sends
    `recoverOnBoot` and before the scheduler.
 8. **Execution identical to the Syntax Ops worker:** `buildArgs` in `server/src/runner.ts` (permission
    bypass, prompt over stdin) and `buildChildEnv` clearing `CLAUDECODE*`. Script (`runScript`) uses the
-   same `execute`: stdin closed, `windowsHide`, timeout with `taskkill /t`, no retry and no `LimitTracker`.
+   same `execute`: stdin closed, `windowsHide`, no retry and no `LimitTracker`. Killing must take the whole tree:
+   `taskkill /t` on Windows and, on macOS and Linux, the child is spawned `detached` (its own process group) and
+   `killTree` signals the group (`process.kill(-pid)`), or the command the shell started survives the timeout.
 9. **Names:** database in snake_case with `AS "field"` aliases on reads; JSON and TypeScript in
    camelCase; booleans with `is`/`has`.
 10. **Every interface string lives in the two dictionaries**, `client/src/i18n.tsx` (panel) and
@@ -64,7 +67,10 @@ None of these commands touches `data/`, calls the real Claude or Codex, or sends
     it. The sending account comes from Settings
     (`PUT /api/settings/mail`, tested with `verify()` before anything is written) or, without one, from
     `.env` (`process.loadEnvFile` in `index.ts`). The SMTP password saved from the panel exists only
-    encrypted with DPAPI (`server/src/secret-store.ts`, key `smtp_pass_dpapi`) and never leaves the
+    kept by the system vault (`server/src/secret-store.ts`, key `smtp_pass_dpapi`): DPAPI on Windows (the encrypted
+    text itself), Keychain on macOS and Secret Service on Linux (only the `keychain:`/`secret-service:` reference,
+    with the secret always over stdin, never in argv). Removing the account also clears the vault item, best effort.
+    The password never leaves the
     server: `describeMail` in `server/src/mailer.ts` is the only view the API and the CLI expose, and
     `app.test.ts`, `routines-cli.test.ts` and the e2e assert that neither the password nor the blob shows
     up. The e2e clears `SMTP_*` from the test server's environment and configures e-mail through the
@@ -84,7 +90,8 @@ None of these commands touches `data/`, calls the real Claude or Codex, or sends
 | E-mail account, badge and DPAPI | `server/src/mailer.ts`, `server/src/secret-store.ts`, `client/src/components/MailSettingsCard.tsx` |
 | Operations dashboard (read-only aggregates, 24 h horizon) | `server/src/dashboard.ts`, `client/src/pages/DashboardPage.tsx`, metrics in `docs/features/dashboard.md` |
 | Routines list filter (name, type, folder) | `client/src/pages/RoutinesPage.tsx` (`matchesFilter`) |
-| Windows installation | `service/install.ps1`, `service/uninstall.ps1` |
+| Windows installation | `service/install.ps1`, `service/uninstall.ps1`, `service/listener.ps1` |
+| macOS and Linux installation (launchd, systemd --user) | `service/install.sh`, `service/uninstall.sh`, `service/listener.sh` |
 | Agent CLI and skill packages | `scripts/routines-cli.ts`, `skills/` (gate: `scripts/check-skills.mjs`) |
 | README images and Open Graph | `scripts/screenshots.mjs`, `scripts/render-og.mjs`, `docs/assets/` |
 

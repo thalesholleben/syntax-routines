@@ -4,7 +4,7 @@ import { ExternalLink, Mail, PlugZap, Send, Settings2, Trash2 } from "lucide-rea
 import { useI18n } from "../i18n";
 import { apiRequest, formatApiError } from "../lib/api";
 import { useFormat } from "../lib/format";
-import type { MailMeta, SettingsResponse } from "../types";
+import type { MailMeta, Platform, SettingsResponse } from "../types";
 import { Badge, Button, Card, ErrorBox, Input, Label, Modal, Select, Skeleton, Spinner } from "./ui";
 
 const GMAIL = { host: "smtp.gmail.com", port: 587 };
@@ -19,11 +19,13 @@ type ActionState = { kind: "idle" } | { kind: "busy" } | { kind: "done"; message
  */
 export function MailSettingsCard({
   mail,
+  platform,
   notifyEmail,
   onSaved,
   onRefresh
 }: {
   mail: MailMeta | null;
+  platform: Platform;
   notifyEmail: string;
   onSaved: (data: SettingsResponse) => void;
   onRefresh: () => void;
@@ -104,6 +106,7 @@ export function MailSettingsCard({
           {isDialogOpen && (
             <MailDialog
               mail={mail}
+              platform={platform}
               notifyEmail={notifyEmail}
               onClose={() => setIsDialogOpen(false)}
               onSaved={(data) => {
@@ -120,11 +123,13 @@ export function MailSettingsCard({
 
 function MailDialog({
   mail,
+  platform,
   notifyEmail: savedNotifyEmail,
   onClose,
   onSaved
 }: {
   mail: MailMeta;
+  platform: Platform;
   notifyEmail: string;
   onClose: () => void;
   onSaved: (data: SettingsResponse) => void;
@@ -320,7 +325,7 @@ function MailDialog({
             <p className="mt-1 text-[11px] text-[var(--color-fg-subtle)]">{m.mailToHint}</p>
           </div>
 
-          {isEditingAccount && <p className="text-[11px] leading-relaxed text-[var(--color-fg-subtle)]">{m.mailSecretHint}</p>}
+          {isEditingAccount && <p className="text-[11px] leading-relaxed text-[var(--color-fg-subtle)]">{m.mailSecretHint[platform]}</p>}
         </fieldset>
       </form>
     </Modal>

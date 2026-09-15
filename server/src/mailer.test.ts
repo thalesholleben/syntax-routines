@@ -51,7 +51,14 @@ afterEach(() => {
 function fakeSecrets() {
   const vault = new Map<string, string>();
   const calls = { protect: 0, unprotect: 0 };
+  const forgotten: string[] = [];
+  const control = { isForgetBroken: false };
   const store: SecretStore = {
+    async forget(blob) {
+      forgotten.push(blob);
+      if (control.isForgetBroken) throw new Error("cofre recusou apagar");
+      vault.delete(blob);
+    },
     async protect(plain) {
       calls.protect += 1;
       const blob = `b10b${vault.size + 1}`;
@@ -65,7 +72,7 @@ function fakeSecrets() {
       return plain;
     }
   };
-  return { store, vault, calls };
+  return { store, vault, calls, forgotten, control };
 }
 
 /** Transporte falso: guarda a config de cada conexao e falha quando o teste manda. */
@@ -281,10 +288,38 @@ describe("createMailer com a conta salva pelo painel", () => {
     const mailer = createMailer({ db, env, secrets: fakeSecrets().store, createTransport: factory });
     await mailer.save({ account, notifyEmail: "dono@example.com" });
     expect(mailer.describe().source).toBe("panel");
-    mailer.remove();
+    await mailer.remove();
     expect(mailer.describe()).toMatchObject({ source: "env", fromEmail: "avisos@example.com", status: { state: "untested" } });
     expect(settingsRows()).not.toMatch(/smtp_|mail_status|mail_from_email/);
     expect(readSettings(db).notifyEmail).toBe("dono@example.com");
+  });
+});
+
+describe("createMailer limpa o cofre do sistema", () => {
+  it("senha nova apaga o item antigo do cofre; senha em branco nao apaga nada", async () => {
+    const secrets = fakeSecrets();
+    const { factory } = fakeTransport();
+    const mailer = createMailer({ db, env: {}, secrets: secrets.store, createTransport: factory });
+    await mailer.save({ account, notifyEmail: "dono@example.com" });
+    const [first] = secrets.vault.keys();
+    await mailer.save({ account: { ...account, password: "  " }, notifyEmail: "dono@example.com" });
+    expect(secrets.forgotten).toEqual([]);
+    await mailer.save({ account: { ...account, password: "senha-nova" }, notifyEmail: "dono@example.com" });
+    expect(secrets.forgotten).toEqual([first]);
+    expect([...secrets.vault.values()]).toEqual(["senha-nova"]);
+  });
+
+  it("remover apaga o item do cofre, e cofre que recusa apagar nao impede a remocao da conta", async () => {
+    const secrets = fakeSecrets();
+    const { factory } = fakeTransport();
+    const mailer = createMailer({ db, env: {}, secrets: secrets.store, createTransport: factory });
+    await mailer.save({ account, notifyEmail: "dono@example.com" });
+    const [blob] = secrets.vault.keys();
+    secrets.control.isForgetBroken = true;
+    await mailer.remove();
+    expect(secrets.forgotten).toEqual([blob]);
+    expect(mailer.describe()).toMatchObject({ isConfigured: false, source: null });
+    expect(settingsRows()).not.toMatch(/smtp_|mail_status/);
   });
 });
 

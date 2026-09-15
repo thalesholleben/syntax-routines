@@ -8,17 +8,19 @@ the use case.
 
 ```powershell
 npm install
-Copy-Item .env.example .env        # optional: e-mail can also be set up in Settings
 npm run dev                        # API on 4090 + Vite panel on 5190
 ```
 
-Needs Windows 10/11 and Node.js 24.13 or newer. Tests never call the real Claude or Codex.
+The same two commands work in a terminal on macOS and Linux. E-mail is set up in Settings; `.env`
+is optional. Needs Node.js 24.13 or newer on Windows 10/11, macOS 13+ or Linux. Tests never call
+the real Claude or Codex.
 
 ## Before opening a PR
 
 1. `npm run typecheck`, `npm test` and `npm run build` green.
 2. Changed a screen or a user flow: `npm run e2e` (Chrome installed).
-3. Changed `service/` or `scripts/*.ps1`: `npm run test:ps1`.
+3. Changed `service/*.ps1` or `scripts/*.ps1`: `npm run test:ps1` (Windows). Changed `service/*.sh`:
+   `npm run test:sh` (macOS or Linux).
 4. Changed the CLI (`scripts/routines-cli.ts`) or `skills/`: update `skills/*/references/cli.md`
    in both variants and run `npm run skills:check`.
 5. Read [AGENTS.md](AGENTS.md): its invariants (API closed by default, `Host`/`Origin` guards,
@@ -29,8 +31,9 @@ Needs Windows 10/11 and Node.js 24.13 or newer. Tests never call the real Claude
 
 ## Reporting a bug
 
-Use the issue template. Include the Windows and Node versions, what the routine did (agent or
-script), and the relevant excerpt of `data/app.log` or the run log, without secrets.
+Use the issue template. Include your system (Windows, macOS or Linux) and Node versions, what the
+routine did (agent or script), and the relevant excerpt of `data/app.log` or the run log, without
+secrets.
 
 ## Security
 

@@ -8,20 +8,22 @@
 2. Whoever has the panel password launches **Claude Code and Codex with full access**
    (`--dangerously-skip-permissions`, `--dangerously-bypass-approvals-and-sandbox`) and
    **arbitrary commands** on the PC, limited to the root folder set in Settings. The panel is an
-   execution surface by design: treat the password like your Windows password and do not expose
-   the port on the network. The CLI (`routines.cmd`) and the import write straight to
+   execution surface by design: treat the password like the password of your computer account and
+   do not expose the port on the network. The CLI (`routines.cmd`, `routines.sh`) and the import write straight to
    `data/app.db`, with no password: whoever can read and write the app folder has the same power
    the password gives.
-3. The app's only secret is the SMTP password for e-mail alerts. Saved from Settings, it is
-   encrypted with Windows DPAPI for the current user before it reaches `data/app.db`, so a copy of
-   the database on another PC or under another Windows user does not reveal it; whoever already
-   runs code as your Windows user can open it, the same boundary as `.env`. The API, the CLI and
+3. The app's only secret is the SMTP password for e-mail alerts. Saved from Settings, it goes to
+   the vault of the system before it reaches `data/app.db`: Windows DPAPI (the database keeps the
+   encrypted text itself), the macOS Keychain or the Linux Secret Service (the database keeps only a
+   reference). A copy of the database on another machine or under another user does not reveal it;
+   whoever already runs code as your user can open it, the same boundary as `.env`. The secret always
+   travels over stdin between the app and the vault, never in a command line. The API, the CLI and
    the logs never return it, not even encrypted. It can also live in `.env`, outside git. The
    recipient lives in the database. Run logs live in `data/logs/` and may contain whatever the
    agents and scripts print.
 
 Out of scope: multiple users, remote access, isolation between routines (they all run as the
-Windows user) and protection against whoever already has access to the Windows account.
+logged-in user) and protection against whoever already has access to that account.
 
 ## Supported versions
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Scheduled Claude Code, Codex and script routines on Windows, with an e-mail alert when they fail. An extension of Syntax Ops.",
+  "description": "Scheduled Claude Code, Codex and script routines on Windows, macOS and Linux, with an e-mail alert when they fail. An extension of Syntax Ops.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -24,6 +24,7 @@
     "e2e": "node e2e/smoke.mjs",
     "import": "tsx --disable-warning=ExperimentalWarning scripts/import-routines.ts",
     "test:ps1": "pwsh -File service/listener.test.ps1 && pwsh -File scripts/check-backup.test.ps1",
+    "test:sh": "sh service/listener.test.sh && sh service/install.test.sh",
     "routines": "tsx --disable-warning=ExperimentalWarning scripts/routines-cli.ts",
     "skills:check": "node scripts/check-skills.mjs",
     "skills:install": "node scripts/install-skill.mjs"

@@ -179,9 +179,14 @@ const pt = {
   time: "Hora",
   intervalHint: "Roda nos minutos cheios do intervalo (por exemplo, 00, 15, 30 e 45) nos dias marcados. Se o PC estiver desligado num deles, a rotina espera o próximo.",
   stepCommand: "03 · Comando",
-  commandPlaceholder: "powershell -NoProfile -ExecutionPolicy Bypass -File rodar.ps1",
-  commandHint:
-    "Uma linha, como você digitaria no cmd. Roda no diretório escolhido, sem janela, e o que o comando imprimir fica no log. Código de saída diferente de 0 conta como falha, sem nova tentativa, e dispara o aviso por e-mail.",
+  // Exemplo e dica do comando pelo sistema do PC: cmd no Windows, sh no macOS e no Linux.
+  commandPlaceholder: { windows: "powershell -NoProfile -ExecutionPolicy Bypass -File rodar.ps1", posix: "./rodar.sh" },
+  commandHint: {
+    windows:
+      "Uma linha, como você digitaria no cmd. Roda no diretório escolhido, sem janela, e o que o comando imprimir fica no log. Código de saída diferente de 0 conta como falha, sem nova tentativa, e dispara o aviso por e-mail.",
+    posix:
+      "Uma linha, como você digitaria no Terminal (roda pelo sh). Roda no diretório escolhido, em segundo plano, e o que o comando imprimir fica no log. Código de saída diferente de 0 conta como falha, sem nova tentativa, e dispara o aviso por e-mail."
+  },
   stepPrompt: "03 · Escreva o prompt",
   promptHint:
     "O agente roda sem pedir permissão, dentro do diretório escolhido. Se a rotina publica ou envia algo, peça para ele conferir se já fez hoje: uma nova tentativa roda o prompt inteiro de novo.",
@@ -260,7 +265,12 @@ const pt = {
   mailTo: "E-mail que recebe os avisos",
   notifyPlaceholder: "voce@exemplo.com",
   mailToHint: "Pode ser o mesmo que envia.",
-  mailSecretHint: "A senha fica cifrada com a chave do seu usuário do Windows e nunca volta para o painel.",
+  mailSecretHint: {
+    win32: "A senha fica cifrada com a chave do seu usuário do Windows e nunca volta para o painel.",
+    darwin: "A senha fica guardada nas Chaves (Keychain) do seu usuário do macOS e nunca volta para o painel.",
+    linux: "A senha fica guardada no chaveiro do sistema (Secret Service) e nunca volta para o painel.",
+    other: "Este sistema não tem cofre de senha suportado: a senha não será guardada. Use o arquivo .env."
+  },
   mailEnvAccount: (from: string, server: string) => `A conta que envia está no arquivo .env: ${from}, via ${server}.`,
   mailUseOtherAccount: "Usar outra conta aqui",
   mailSaveAndTest: "Salvar e testar",
@@ -474,9 +484,13 @@ const en: Messages = {
   time: "Time",
   intervalHint: "Runs on the interval's round minutes (for example 00, 15, 30 and 45) on the marked days. If the PC is off at one of them, the routine waits for the next.",
   stepCommand: "03 · Command",
-  commandPlaceholder: "powershell -NoProfile -ExecutionPolicy Bypass -File run.ps1",
-  commandHint:
-    "One line, as you would type it in cmd. Runs in the chosen directory, without a window, and whatever the command prints goes to the log. An exit code other than 0 counts as a failure, with no retry, and triggers the e-mail alert.",
+  commandPlaceholder: { windows: "powershell -NoProfile -ExecutionPolicy Bypass -File run.ps1", posix: "./run.sh" },
+  commandHint: {
+    windows:
+      "One line, as you would type it in cmd. Runs in the chosen directory, without a window, and whatever the command prints goes to the log. An exit code other than 0 counts as a failure, with no retry, and triggers the e-mail alert.",
+    posix:
+      "One line, as you would type it in Terminal (it runs through sh). Runs in the chosen directory, in the background, and whatever the command prints goes to the log. An exit code other than 0 counts as a failure, with no retry, and triggers the e-mail alert."
+  },
   stepPrompt: "03 · Write the prompt",
   promptHint:
     "The agent runs without asking for permission, inside the chosen directory. If the routine publishes or sends something, ask it to check whether it already did so today: a retry runs the whole prompt again.",
@@ -553,7 +567,12 @@ const en: Messages = {
   mailTo: "E-mail that receives the alerts",
   notifyPlaceholder: "you@example.com",
   mailToHint: "It can be the same as the sending one.",
-  mailSecretHint: "The password is encrypted with your Windows user's key and never comes back to the panel.",
+  mailSecretHint: {
+    win32: "The password is encrypted with your Windows user's key and never comes back to the panel.",
+    darwin: "The password is stored in your macOS user's Keychain and never comes back to the panel.",
+    linux: "The password is stored in the system keyring (Secret Service) and never comes back to the panel.",
+    other: "This system has no supported password vault: the password will not be stored. Use the .env file."
+  },
   mailEnvAccount: (from: string, server: string) => `The sending account is in the .env file: ${from}, via ${server}.`,
   mailUseOtherAccount: "Use another account here",
   mailSaveAndTest: "Save and test",

@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import os from "node:os";
@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { createApp } from "./app";
 import { openDb, type Db } from "./db";
+import { setLogFile } from "./log";
 import { createMailer, type MailMessage, type SmtpConfig, type TransportFactory } from "./mailer";
 import type { RunAgent, RunScript } from "./runner";
 import { createScheduler } from "./scheduler";
@@ -60,8 +61,13 @@ const fakeTransport: TransportFactory = (config) => ({
     if (verifyError) throw verifyError;
   }
 });
-// Cofre falso: a senha fica num Map e o banco recebe so o apelido.
+// Cofre falso: a senha fica num Map e o banco recebe so o apelido. `isForgetBroken` simula o cofre recusando apagar.
+let isForgetBroken = false;
 const fakeSecrets: SecretStore = {
+  async forget(blob) {
+    if (isForgetBroken) throw new Error(`cofre recusou apagar ${blob}`);
+    vault.delete(blob);
+  },
   async protect(plain) {
     const blob = `c0ffee${vault.size + 1}`;
     vault.set(blob, plain);
@@ -89,6 +95,7 @@ beforeEach(async () => {
   verifyError = null;
   testEnv = { SMTP_USER: "avisos@example.com", SMTP_PASS: "senha-do-env", MAIL_FROM_EMAIL: "avisos@example.com" };
   vault = new Map();
+  isForgetBroken = false;
   const now = () => clock;
   const logsDir = path.join(tmp, "logs");
   const scheduler = createScheduler({ db, runAgent: fakeRunAgent, runScript: fakeRunScript, logsDir, now });
@@ -465,6 +472,27 @@ describe("com sessao", () => {
     const noPassword = await request("PUT", "/api/settings/mail", { cookie, body: { account: { ...account, password: " " }, notifyEmail: "dono@example.com" } });
     expect(noPassword.status).toBe(400);
     expect(noPassword.body.details.fieldErrors).toEqual({ password: ["Digite a senha."] });
+  });
+
+  it("remover a conta com o cofre recusando apagar ainda remove, sem o blob na resposta, no banco ou no log", async () => {
+    const logFile = path.join(tmp, "app.log");
+    setLogFile(logFile);
+    const cookie = await setupSession();
+    const account = { host: "smtp.gmail.com", port: 587, fromEmail: "painel@example.com", password: "abcd efgh ijkl mnop" };
+    const saved = await request("PUT", "/api/settings/mail", { cookie, body: { account, notifyEmail: "dono@example.com" } });
+    expect(saved.status).toBe(200);
+    expect(["win32", "darwin", "linux", "other"]).toContain(saved.body.platform);
+    const blob = [...vault.keys()][0];
+
+    isForgetBroken = true;
+    const removed = await request("DELETE", "/api/settings/mail", { cookie });
+    expect(removed.status).toBe(200);
+    expect(removed.body.mail).toMatchObject({ source: "env", fromEmail: "avisos@example.com" });
+    expect(JSON.stringify(removed.body)).not.toContain(blob);
+    expect(JSON.stringify(db.prepare("SELECT key, value FROM settings").all())).not.toContain(blob);
+    const logText = existsSync(logFile) ? readFileSync(logFile, "utf8") : "";
+    expect(logText).toContain("senha antiga do e-mail não foi apagada do cofre do sistema");
+    expect(logText).not.toContain(blob);
   });
 
   it("diretorio irmao por prefixo responde 400 sem gravar", async () => {

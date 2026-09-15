@@ -8,7 +8,7 @@ import { Badge, Button, Card, ErrorBox, Input, Label, Select, Skeleton, Spinner 
 import { useI18n } from "../i18n";
 import { apiRequest, formatApiError } from "../lib/api";
 import { useFormat } from "../lib/format";
-import type { AgentKind, MailMeta, SettingsDto, SettingsResponse, StatusDto } from "../types";
+import type { AgentKind, MailMeta, Platform, SettingsDto, SettingsResponse, StatusDto } from "../types";
 
 const PARALLEL_OPTIONS = [1, 2, 3, 4, 5, 6, 8, 10];
 const BOOT_DELAY_OPTIONS = [0, 5, 10, 15, 30, 60];
@@ -22,6 +22,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
   const baseId = useId();
   const [form, setForm] = useState<SettingsDto | null>(null);
   const [mail, setMail] = useState<MailMeta | null>(null);
+  const [platform, setPlatform] = useState<Platform>("other");
   const [loadError, setLoadError] = useState<string | null>(null);
   const [settingsState, setSettingsState] = useState<FormState>({ kind: "idle" });
   const [status, setStatus] = useState<StatusDto | null>(null);
@@ -34,6 +35,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
       .then((data) => {
         setForm(data.settings);
         setMail(data.mail);
+        setPlatform(data.platform);
       })
       .catch((error: unknown) => setLoadError(formatApiError(error)));
   }, []);
@@ -222,7 +224,7 @@ export function SettingsPage({ onLogout }: { onLogout: () => void }) {
             )}
           </Card>
 
-          <MailSettingsCard mail={mail} notifyEmail={form?.notifyEmail ?? ""} onSaved={applyMail} onRefresh={refreshMail} />
+          <MailSettingsCard mail={mail} platform={platform} notifyEmail={form?.notifyEmail ?? ""} onSaved={applyMail} onRefresh={refreshMail} />
 
           <Card className="p-4">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-[var(--color-fg)]">

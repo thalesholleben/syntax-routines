@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
@@ -25,6 +25,9 @@ afterAll(() => {
 });
 
 const isAccepted = (dir: string) => checkDirectory(root, dir).ok;
+// Os casos de caixa so existem onde o sistema de arquivos nao diferencia caixa (Windows, macOS padrao). No Linux a
+// pasta escrita em maiusculas e outra pasta, que nao existe.
+const isCaseInsensitiveFs = existsSync(os.tmpdir().toUpperCase()) && existsSync(os.tmpdir().toLowerCase());
 const OUTSIDE = { ok: false, reason: "dirOutsideRoot" };
 
 describe("checkDirectory", () => {
@@ -33,13 +36,25 @@ describe("checkDirectory", () => {
     expect(checkDirectory(root, path.join(root, "sub"))).toEqual({ ok: true, real: path.join(root, "sub") });
   });
 
-  it("aceita a mesma pasta escrita com outra caixa e devolve o caminho real", () => {
+  it.runIf(isCaseInsensitiveFs)("aceita a mesma pasta escrita com outra caixa e devolve o caminho real", () => {
     expect(checkDirectory(root, path.join(root, "sub").toUpperCase())).toEqual({ ok: true, real: path.join(root, "sub") });
   });
 
-  it("rejeita pasta irma por prefixo, inclusive com outra caixa", () => {
+  it("rejeita pasta irma por prefixo", () => {
     expect(checkDirectory(root, path.join(base, "Client-old"))).toEqual(OUTSIDE);
+  });
+
+  it.runIf(isCaseInsensitiveFs)("rejeita pasta irma por prefixo escrita com outra caixa", () => {
     expect(checkDirectory(root, path.join(base, "CLIENT-OLD"))).toEqual(OUTSIDE);
+  });
+
+  it.runIf(process.platform !== "win32")("rejeita pasta do sistema no macOS e no Linux, mesmo com a raiz em /", () => {
+    const SYSTEM = { ok: false, reason: "dirSystem" };
+    expect(checkDirectory("/", "/usr")).toEqual(SYSTEM);
+    expect(checkDirectory("/", "/etc")).toEqual(SYSTEM);
+    if (process.platform === "darwin") expect(checkDirectory("/", "/System")).toEqual(SYSTEM);
+    // O tmp do usuario (no macOS, /private/var/folders) continua valendo.
+    expect(checkDirectory(base, base)).toEqual({ ok: true, real: base });
   });
 
   it("rejeita subir com .. sem normalizar antes", () => {

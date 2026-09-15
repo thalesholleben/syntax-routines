@@ -6,7 +6,8 @@ import nodemailer from "nodemailer";
 
 import type { Db } from "./db";
 import { DEFAULT_LANGUAGE, messages, type Language, type Messages, type TextKey } from "./i18n";
-import { dpapiStore, type SecretStore } from "./secret-store";
+import { log } from "./log";
+import { defaultSecretStore, type SecretStore } from "./secret-store";
 import { deleteSetting, getSetting, setSetting, writeSettings } from "./settings";
 
 export interface MailMessage {
@@ -68,8 +69,8 @@ export interface MailService extends Mailer {
   describe: (language?: Language) => MailView;
   /** Com conta: testa a conexao e so entao grava conta e destinatario (falhou, nada muda). Sem conta: so o destinatario. */
   save: (input: { account: MailAccountInput | null; notifyEmail: string }) => Promise<void>;
-  /** Apaga a conta salva pelo painel; o .env, se houver, volta a valer. */
-  remove: () => void;
+  /** Apaga a conta salva pelo painel (e o item do cofre do sistema); o .env, se houver, volta a valer. */
+  remove: () => Promise<void>;
 }
 
 /** Transporte minimo; o do nodemailer serve, e o teste injeta um falso. */
@@ -295,8 +296,8 @@ export interface MailerDeps {
   now?: () => number;
 }
 
-export function createMailer({ db, env = process.env, secrets = dpapiStore, createTransport = nodemailerTransport, now = Date.now }: MailerDeps): MailService {
-  // A senha aberta fica em memoria so para a conta atual: abrir custa um PowerShell.
+export function createMailer({ db, env = process.env, secrets = defaultSecretStore, createTransport = nodemailerTransport, now = Date.now }: MailerDeps): MailService {
+  // A senha aberta fica em memoria so para a conta atual: abrir custa um processo (PowerShell, security, secret-tool).
   let opened: { blob: string; pass: string } | null = null;
 
   async function openPassword(blob: string): Promise<string> {
@@ -309,6 +310,16 @@ export function createMailer({ db, env = process.env, secrets = dpapiStore, crea
     }
     opened = { blob, pass };
     return pass;
+  }
+
+  // O item antigo do cofre sai depois que o banco ja deixou de apontar para ele. Falhar aqui so deixa um item orfao
+  // no cofre: nao desfaz a troca nem a remocao, e o log nao leva o blob.
+  async function forgetQuietly(blob: string): Promise<void> {
+    try {
+      await secrets.forget(blob);
+    } catch {
+      log("senha antiga do e-mail não foi apagada do cofre do sistema");
+    }
   }
 
   function recordStatus(key: string, failure: MailError | null): void {
@@ -400,13 +411,16 @@ export function createMailer({ db, env = process.env, secrets = dpapiStore, crea
         writeSettings(db, { notifyEmail });
         recordStatus(statusKey("panel", config), null);
       });
+      if (stored && stored.passBlob !== blob) await forgetQuietly(stored.passBlob);
     },
 
-    remove() {
+    async remove() {
+      const blob = getSetting(db, KEY.passBlob);
       transaction(db, () => {
         for (const key of Object.values(KEY)) deleteSetting(db, key);
       });
       opened = null;
+      if (blob) await forgetQuietly(blob);
     }
   };
 }
