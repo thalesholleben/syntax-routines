@@ -61,7 +61,7 @@ suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
   Conectado ou por que falhou. Aviso que não conseguiu sair (internet fora, por exemplo) é
   tentado de novo por até 24 h: a queda atrasa o aviso em vez de perdê-lo.
 - **Histórico e log** de cada execução no painel e pelo CLI, com retenção de 30 dias. Com muitas
-  rotinas, o cabeçalho tem busca pelo nome e filtro por tipo.
+  rotinas, o cabeçalho tem busca pelo nome e filtros por tipo e por pasta.
 - **Português ou inglês.** Um seletor discreto na tela de login e no pé da barra lateral troca o
   painel inteiro; a escolha vale também para as notas das execuções e para o e-mail de aviso.
 - **Um agente cuida disso por você.** O CLI e a skill deixam o Claude Code ou o Codex consultar,

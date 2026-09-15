@@ -22,7 +22,8 @@ commit on `main`.
   in the panel's language (`Accept-Language`), and run notes and alert e-mails follow Settings.
   Dictionaries are typed against each other (`client/src/i18n.tsx`, `server/src/i18n.ts`).
 - **Search and type filter on the Routines header**: by name (accent and case insensitive) and by
-  Claude Code, Codex or Script, with the shown/total count and a Clear filter button.
+  Claude Code, Codex or Script, and by working folder (shown relative to the root folder, only when
+  routines use more than one), with the shown/total count and a Clear filter button.
 - Landing page at [routines.syntaxlab.com.br](https://routines.syntaxlab.com.br) (Portuguese, with
   English at `/en/`); source under `site/`.
 - Banner, screenshots with demo data (`scripts/screenshots.mjs`, `--lang en`), Open Graph images in

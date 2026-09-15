@@ -28,8 +28,14 @@ function fold(text: string): string {
     .toLowerCase();
 }
 
-export function matchesFilter(routine: Pick<RoutineDto, "name" | "agentKind">, query: string, kind: KindFilter): boolean {
+export function matchesFilter(
+  routine: Pick<RoutineDto, "name" | "agentKind" | "directory">,
+  query: string,
+  kind: KindFilter,
+  directory = ""
+): boolean {
   if (kind && routine.agentKind !== kind) return false;
+  if (directory && routine.directory !== directory) return false;
   const needle = fold(query.trim());
   return needle === "" || fold(routine.name).includes(needle);
 }
@@ -46,6 +52,7 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
   const [outputRunId, setOutputRunId] = useState<number | null>(null);
   const [query, setQuery] = useState("");
   const [kind, setKind] = useState<KindFilter>("");
+  const [directory, setDirectory] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -108,11 +115,15 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
   const hasRoot = Boolean(meta?.settings.rootDirectory);
 
   // O filtro so muda o que aparece: contagem do subtitulo, polling e proxima execucao seguem olhando todas.
-  const isFiltering = query.trim() !== "" || kind !== "";
-  const visible = routines?.filter((routine) => matchesFilter(routine, query, kind)) ?? [];
+  // Pasta que sumiu da lista (rotina apagada ou movida) deixa de filtrar, em vez de esconder tudo.
+  const directories = directoryOptions(routines ?? [], meta?.settings.rootDirectory ?? "");
+  const activeDirectory = directories.some((option) => option.value === directory) ? directory : "";
+  const isFiltering = query.trim() !== "" || kind !== "" || activeDirectory !== "";
+  const visible = routines?.filter((routine) => matchesFilter(routine, query, kind, activeDirectory)) ?? [];
   function clearFilter() {
     setQuery("");
     setKind("");
+    setDirectory("");
   }
 
   return (
@@ -121,7 +132,17 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
         title={m.navRoutines}
         subtitle={subtitle}
         actions={
-          routines !== null && routines.length > 0 ? <RoutineFilter query={query} kind={kind} onQuery={setQuery} onKind={setKind} /> : undefined
+          routines !== null && routines.length > 0 ? (
+            <RoutineFilter
+              query={query}
+              kind={kind}
+              directory={activeDirectory}
+              directories={directories}
+              onQuery={setQuery}
+              onKind={setKind}
+              onDirectory={setDirectory}
+            />
+          ) : undefined
         }
       />
 
@@ -218,24 +239,44 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
   );
 }
 
-/** Busca por nome e tipo, no canto do cabecalho: discreto, some quando nao ha rotina para filtrar. */
+type DirectoryOption = { value: string; label: string };
+
+/** Pastas das rotinas, pelo caminho a partir da pasta mae ("03-ferramentas/backlog"); fora dela, o caminho inteiro. */
+export function directoryOptions(routines: Pick<RoutineDto, "directory">[], rootDirectory: string): DirectoryOption[] {
+  const root = rootDirectory.replace(/[\\/]+$/, "");
+  return [...new Set(routines.map((routine) => routine.directory))]
+    .map((value) => {
+      const isInsideRoot = root !== "" && value.toLowerCase().startsWith(`${root.toLowerCase()}\\`);
+      const relative = isInsideRoot ? value.slice(root.length + 1).replace(/\\/g, "/") : value === root ? basename(value) : value;
+      return { value, label: relative };
+    })
+    .sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Busca por nome, tipo e pasta, no canto do cabecalho: discreto, some quando nao ha rotina para filtrar. */
 function RoutineFilter({
   query,
   kind,
+  directory,
+  directories,
   onQuery,
-  onKind
+  onKind,
+  onDirectory
 }: {
   query: string;
   kind: KindFilter;
+  directory: string;
+  directories: DirectoryOption[];
   onQuery: (value: string) => void;
   onKind: (value: KindFilter) => void;
+  onDirectory: (value: string) => void;
 }) {
   const { m } = useI18n();
   const f = useFormat();
   const field =
     "h-8 rounded-[var(--radius-md)] border border-[var(--color-border)] bg-[var(--color-surface-2)]/70 text-xs text-[var(--color-fg)] outline-none focus:border-[var(--color-primary)]";
   return (
-    <div className="flex items-center gap-1.5">
+    <div className="flex flex-wrap items-center justify-end gap-1.5">
       <label className="relative">
         <span className="sr-only">{m.searchRoutines}</span>
         <Search aria-hidden className="pointer-events-none absolute left-2 top-1/2 size-3.5 -translate-y-1/2 text-[var(--color-fg-subtle)]" />
@@ -260,6 +301,23 @@ function RoutineFilter({
           </option>
         ))}
       </select>
+      {/* Com uma pasta so, o seletor nao filtraria nada. */}
+      {directories.length > 1 && (
+        <select
+          aria-label={m.filterByDirectory}
+          value={directory}
+          onChange={(event: ChangeEvent<HTMLSelectElement>) => onDirectory(event.target.value)}
+          title={directory || undefined}
+          className={cn(field, "max-w-44 px-2", directory === "" && "text-[var(--color-fg-muted)]")}
+        >
+          <option value="">{m.allDirectories}</option>
+          {directories.map((option) => (
+            <option key={option.value} value={option.value} title={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }

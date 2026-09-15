@@ -65,7 +65,7 @@ no support channel with a deadline; see [SUPPORT.md](SUPPORT.md).
   Connected or why it failed. An alert that cannot be sent (the internet is down, say) is retried
   for up to 24 h, so an outage delays it instead of losing it.
 - **History and log** for every run, in the panel and through the CLI, kept for 30 days. With many
-  routines, the header has a search by name and a filter by type.
+  routines, the header has a search by name and filters by type and by folder.
 - **English or Portuguese.** A discreet selector on the sign-in screen and at the bottom of the
   sidebar switches the whole panel; the choice also applies to run notes and alert e-mails.
 - **An agent looks after it for you.** The CLI and the skill let Claude Code or Codex read,

@@ -83,7 +83,7 @@ None of these commands touches `data/`, calls the real Claude or Codex, or sends
 | Routine dialog | `client/src/components/RoutineModal.tsx` |
 | E-mail account, badge and DPAPI | `server/src/mailer.ts`, `server/src/secret-store.ts`, `client/src/components/MailSettingsCard.tsx` |
 | Operations dashboard (read-only aggregates, 24 h horizon) | `server/src/dashboard.ts`, `client/src/pages/DashboardPage.tsx`, metrics in `docs/features/dashboard.md` |
-| Routines list filter (name, type) | `client/src/pages/RoutinesPage.tsx` (`matchesFilter`) |
+| Routines list filter (name, type, folder) | `client/src/pages/RoutinesPage.tsx` (`matchesFilter`) |
 | Windows installation | `service/install.ps1`, `service/uninstall.ps1` |
 | Agent CLI and skill packages | `scripts/routines-cli.ts`, `skills/` (gate: `scripts/check-skills.mjs`) |
 | README images and Open Graph | `scripts/screenshots.mjs`, `scripts/render-og.mjs`, `docs/assets/` |

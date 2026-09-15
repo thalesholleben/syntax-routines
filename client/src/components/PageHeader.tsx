@@ -8,7 +8,7 @@ export function PageHeader({ title, subtitle, actions }: { title: string; subtit
         <h1 className="text-lg font-semibold text-[var(--color-fg)]">{title}</h1>
         {subtitle && <p className="truncate text-xs text-[var(--color-fg-subtle)]">{subtitle}</p>}
       </div>
-      {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
+      {actions && <div className="flex min-w-0 max-w-full shrink-0 items-center gap-2">{actions}</div>}
     </header>
   );
 }

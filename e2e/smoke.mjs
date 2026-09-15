@@ -49,6 +49,7 @@ mkdirSync(outputDir, { recursive: true });
 const tmp = realpathSync.native(mkdtempSync(path.join(os.tmpdir(), "sr-e2e-")));
 const root = path.join(tmp, "pasta-mae");
 mkdirSync(path.join(root, "projeto-teste"), { recursive: true });
+mkdirSync(path.join(root, "outro-projeto"), { recursive: true });
 const port = await freePort();
 const baseUrl = `http://127.0.0.1:${port}`;
 // SMTP falso em 127.0.0.1 para o modal de e-mail (passo 5c): nenhuma mensagem sai da maquina.
@@ -183,7 +184,7 @@ try {
   await dialog.getByRole("button", { name: "A cada intervalo" }).click();
   await dialog.getByLabel("A cada", { exact: true }).selectOption("15");
   await dialog.getByRole("textbox", { name: /Comando/ }).fill("cmd /c echo rotina-script-ok");
-  await dialog.getByLabel("Diretório").selectOption(path.join(root, "projeto-teste"));
+  await dialog.getByLabel("Diretório").selectOption(path.join(root, "outro-projeto"));
   await page.screenshot({ path: path.join(outputDir, "modal-script-1280.png") });
   await dialog.getByRole("button", { name: "Salvar rotina" }).click();
   await dialog.waitFor({ state: "detached" });
@@ -272,6 +273,13 @@ try {
   await page.getByRole("button", { name: "Limpar filtro" }).click();
   await card.waitFor();
   check((await page.getByRole("article").count()) === 2, "Limpar filtro devolve as duas rotinas");
+  const folder = page.getByRole("combobox", { name: "Filtrar por pasta" });
+  check((await folder.locator("option").allTextContents()).join("|") === "Todas as pastas|outro-projeto|projeto-teste", "seletor de pasta lista as pastas pelo caminho a partir da pasta mãe");
+  await folder.selectOption({ label: "projeto-teste" });
+  await scriptCard.waitFor({ state: "hidden" });
+  check((await page.getByRole("article").count()) === 1 && (await card.isVisible()), "filtro por pasta deixa só a rotina daquela pasta");
+  await page.getByRole("button", { name: "Limpar filtro" }).click();
+  await scriptCard.waitFor();
 
   // Dashboard uses the real temporary server and results produced above.
   await page.getByRole("button", { name: "Painel", exact: true }).click();
