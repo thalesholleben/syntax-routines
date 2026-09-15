@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Activity, ArrowUpRight, CheckCheck, Clock3, RefreshCw, Terminal, Zap } from "lucide-react";
 
 import type { DashboardSnapshot } from "../../../server/src/dashboard";
@@ -57,13 +57,18 @@ export function DashboardPage() {
   const data = snapshot?.data;
   const status = snapshot?.status;
   const isChangingPeriod = data !== undefined && data.hours !== Number(period);
-  const time = (at: number) => new Intl.DateTimeFormat(LOCALE[language], {
-    hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: data?.timezone
-  }).format(at);
-  const dateTime = (at: number) => new Intl.DateTimeFormat(LOCALE[language], {
-    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: data?.timezone
-  }).format(at);
-  const number = (n: number) => new Intl.NumberFormat(LOCALE[language], { maximumFractionDigits: 1 }).format(n);
+  // O relogio re-renderiza a tela a cada segundo; os formatadores sao caros de construir, por isso vivem entre renders.
+  const timezone = data?.timezone;
+  const formats = useMemo(() => ({
+    time: new Intl.DateTimeFormat(LOCALE[language], { hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: timezone }),
+    dateTime: new Intl.DateTimeFormat(LOCALE[language], {
+      day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23", timeZone: timezone
+    }),
+    number: new Intl.NumberFormat(LOCALE[language], { maximumFractionDigits: 1 })
+  }), [language, timezone]);
+  const time = (at: number) => formats.time.format(at);
+  const dateTime = (at: number) => formats.dateTime.format(at);
+  const number = (n: number) => formats.number.format(n);
   const rate = (summary: DashboardSnapshot["summary"]) => {
     const total = summary.succeeded + summary.failed;
     return total > 0 ? `${number(summary.failed / total * 100)}%` : null;

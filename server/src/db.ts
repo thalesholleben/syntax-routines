@@ -48,11 +48,13 @@ const RUNS_COLUMNS = `
   notify_attempts INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL`;
 
-// Uma linha por ocorrencia agendada: replay da mesma janela (crash, relogio voltando) vira no-op.
+// Uma linha por ocorrencia agendada: replay da mesma janela (crash, relogio voltando) vira no-op. O indice pela
+// expressao de termino e o que o painel (dashboard.ts) consulta a cada 5 s: sem ele, cada poll varre a tabela inteira.
 const INDEXES = `
 CREATE UNIQUE INDEX IF NOT EXISTS runs_schedule_once ON runs (routine_id, scheduled_for) WHERE trigger_type = 'SCHEDULE';
 CREATE INDEX IF NOT EXISTS runs_due ON runs (status, run_at);
 CREATE INDEX IF NOT EXISTS runs_routine ON runs (routine_id, id);
+CREATE INDEX IF NOT EXISTS runs_ended ON runs (COALESCE(finished_at, created_at));
 `;
 
 const SCHEMA = `

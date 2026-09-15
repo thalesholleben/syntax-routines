@@ -31,6 +31,8 @@ commit on `main`.
 
 ### Changed
 
+- Index `runs_ended` on the run end time, so the dashboard refresh reads a slice of `runs` instead
+  of scanning the table (100 k runs: 53 ms to 18 ms per snapshot).
 - Failure alerts that could not be sent are retried n² minutes after the failure (1, 4, 9... up to
   22.8 h) instead of three times in five minutes: an internet outage of a few hours delays the
   alert instead of losing it. The "server not found" reason now also says to check the internet.

@@ -1,7 +1,9 @@
 # Dashboard operacional
 
 Terceira tela do painel, em PT e EN. `GET /api/dashboard?hours=24|168|720` fica
-no router autenticado. Consulta somente leitura, sem migração de banco. A tela
+no router autenticado. Consulta somente leitura; o único toque no banco é o índice
+`runs_ended` pela expressão de término (`db.ts`), criado no `openDb`, que evita a
+varredura completa de `runs` a cada atualização (100 mil execuções: 53 ms para 18 ms). A tela
 atualiza a cada cinco segundos após a resposta, ou trinta segundos quando oculta.
 Falhas de atualização preservam a última fotografia com aviso visível.
 
