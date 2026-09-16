@@ -79,6 +79,25 @@ try {
   await page.getByRole("alert").filter({ hasText: "Mostrando o último estado" }).waitFor();
   if (!(await page.getByRole("heading", { name: "90 ativas de 100 rotinas" }).isVisible())) throw new Error("Stale data was lost");
   await page.unroute("**/api/dashboard*");
+  if (process.argv.includes("--site")) {
+    const shots = path.resolve("docs/assets/screenshots");
+    mkdirSync(shots, { recursive: true });
+    for (const language of ["pt", "en"]) {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.getByRole("button", { name: language === "pt" ? "Português" : "English", exact: true }).click();
+      await page.getByRole("button", { name: language === "pt" ? "Atualizar painel" : "Refresh dashboard" }).click();
+      await page.getByRole("alert").waitFor({ state: "hidden" });
+      for (const mobile of [false, true]) {
+        await page.setViewportSize(mobile ? { width: 390, height: 844 } : { width: 1280, height: 900 });
+        await page.locator(".sr-dashboard__scroll").evaluate(element => { element.scrollTop = 0; });
+        await page.evaluate(() => document.fonts.ready);
+        await page.waitForTimeout(1200);
+        await page.screenshot({ path: path.join(shots, `dashboard${mobile ? "-mobile" : ""}${language === "en" ? "-en" : ""}.png`), animations: "disabled" });
+      }
+    }
+    await page.setViewportSize({ width: 1440, height: 1100 });
+    await page.getByRole("button", { name: "Português", exact: true }).click();
+  }
   await page.getByRole("button", { name: "Atualizar painel" }).click();
   await page.getByRole("alert").waitFor({ state: "hidden" });
   db.exec("DELETE FROM runs; DELETE FROM routines;");

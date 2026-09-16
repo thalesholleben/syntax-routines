@@ -32,9 +32,9 @@
     });
   });
 
-  /* copiar o comando de instalacao (so quando a API existe) */
-  var btn = document.querySelector('[data-copy]');
-  if (btn && navigator.clipboard) {
+  /* copiar o comando de instalacao, um botao por bloco (so quando a API existe) */
+  document.querySelectorAll('[data-copy]').forEach(function (btn) {
+    if (!navigator.clipboard) return;
     btn.hidden = false;
     var label = btn.textContent;
     btn.addEventListener('click', function () {
@@ -44,6 +44,22 @@
         btn.textContent = btn.getAttribute('data-copied') || label;
         setTimeout(function () { btn.textContent = label; }, 1800);
       });
+    });
+  });
+
+  /* particulas do hero: pontos de luz subindo, so quando o movimento e bem-vindo */
+  if (!reduce) {
+    document.querySelectorAll('.fx-particles').forEach(function (box) {
+      var total = parseInt(box.getAttribute('data-particles') || '16', 10);
+      for (var i = 0; i < total; i++) {
+        var dot = document.createElement('i');
+        dot.style.left = (Math.random() * 100).toFixed(1) + '%';
+        dot.style.bottom = (-10 - Math.random() * 30).toFixed(1) + '%';
+        dot.style.animationDuration = (7 + Math.random() * 9).toFixed(1) + 's';
+        dot.style.animationDelay = (-Math.random() * 12).toFixed(1) + 's';
+        dot.style.opacity = (0.22 + Math.random() * 0.4).toFixed(2);
+        box.appendChild(dot);
+      }
     });
   }
 })();

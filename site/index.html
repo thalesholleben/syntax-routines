@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Syntax Routines: rotinas de Claude Code, Codex e scripts no horário certo, no seu PC</title>
-<meta name="description" content="Agende rotinas de Claude Code, Codex e scripts que rodam sozinhas no Windows, no horário certo, com aviso por e-mail quando falham. Sem servidor, sem nuvem. Open source, MIT.">
+<meta name="description" content="Agende rotinas de Claude Code, Codex e scripts que rodam sozinhas no Windows e no Mac, no horário certo, com aviso por e-mail quando falham. Sem servidor, sem nuvem. Open source, MIT.">
 <link rel="canonical" href="https://routines.syntaxlab.com.br/">
 <link rel="alternate" hreflang="pt-BR" href="https://routines.syntaxlab.com.br/">
 <link rel="alternate" hreflang="en" href="https://routines.syntaxlab.com.br/en/">
@@ -21,7 +21,7 @@
 <meta property="og:image" content="https://routines.syntaxlab.com.br/syntax-routines-og.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
-<meta property="og:image:alt" content="Syntax Routines: rotinas agendadas de Claude Code, Codex e scripts no Windows.">
+<meta property="og:image:alt" content="Syntax Routines: rotinas agendadas de Claude Code, Codex e scripts no Windows, no macOS e no Linux.">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Syntax Routines: suas rotinas de Claude Code, Codex e scripts rodam sozinhas">
 <meta name="twitter:description" content="No horário certo, neste PC, com aviso por e-mail quando falham. Sem servidor nem nuvem. Open source, MIT.">
@@ -31,8 +31,8 @@
 <link rel="apple-touch-icon" href="img/icon-192.png">
 <link rel="preload" href="fonts/montserrat-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="fonts/montserrat-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-<link rel="preload" href="img/rotinas-960.webp" as="image" type="image/webp" imagesrcset="img/rotinas-640.webp 640w, img/rotinas-960.webp 960w, img/rotinas-1280.webp 1280w" imagesizes="(min-width: 1024px) 560px, 100vw">
-<link rel="stylesheet" href="css/site.css">
+<link rel="preload" href="img/dashboard-960.webp" as="image" type="image/webp" imagesrcset="img/dashboard-640.webp 640w, img/dashboard-960.webp 960w, img/dashboard-1280.webp 1280w" imagesizes="(min-width: 1024px) 560px, 100vw">
+<link rel="stylesheet" href="css/site.css?v=20260916-mac">
 <noscript><style>.fx-reveal { opacity: 1 !important; transform: none !important; }</style></noscript>
 <script type="application/ld+json">
 {
@@ -40,14 +40,14 @@
   "@type": "SoftwareApplication",
   "name": "Syntax Routines",
   "applicationCategory": "DeveloperApplication",
-  "operatingSystem": "Windows 10, Windows 11",
+  "operatingSystem": "Windows 10, Windows 11, macOS 13, Linux",
   "url": "https://routines.syntaxlab.com.br/",
   "downloadUrl": "https://github.com/thalesholleben/syntax-routines/releases/latest",
   "codeRepository": "https://github.com/thalesholleben/syntax-routines",
   "license": "https://opensource.org/licenses/MIT",
   "softwareVersion": "0.1",
   "inLanguage": "pt-BR",
-  "description": "Rotinas agendadas de Claude Code, Codex e scripts que rodam sozinhas no Windows, no horário certo, com aviso por e-mail quando falham.",
+  "description": "Rotinas agendadas de Claude Code, Codex e scripts que rodam sozinhas no Windows, no macOS e no Linux, no horário certo, com aviso por e-mail quando falham.",
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "BRL" },
   "author": { "@type": "Organization", "name": "SyntaxLab", "url": "https://syntaxlab.com.br" }
 }
@@ -63,11 +63,11 @@
       <b>Syntax</b><span>Routines</span>
     </a>
     <nav aria-label="Seções da página">
-      <a href="#como-funciona">Como funciona</a>
-      <a href="#tipos">Tipos de rotina</a>
-      <a href="#agente">O agente cuida</a>
-      <a href="#instalar">Instalar</a>
-      <a href="#perguntas">Perguntas</a>
+      <a class="fx-underline" href="#como-funciona">Como funciona</a>
+      <a class="fx-underline" href="#tipos">Tipos de rotina</a>
+      <a class="fx-underline" href="#agente">O agente cuida</a>
+      <a class="fx-underline" href="#instalar">Instalar</a>
+      <a class="fx-underline" href="#perguntas">Perguntas</a>
     </nav>
     <div class="lp-topbar__tools">
       <a class="lp-topbar__lang" href="en/" hreflang="en" lang="en">EN</a>
@@ -90,21 +90,26 @@
       <p class="lp-hero__lead">Cadastre uma vez: quem executa, os dias, a hora e o que fazer. O Syntax Routines roda o Claude Code, o Codex ou o seu script no seu computador e manda um e-mail só quando algo falha.</p>
       <p class="lp-hero__sub">Sem servidor, sem conta, sem nuvem. Um processo local, um banco SQLite e um painel em 127.0.0.1.</p>
       <div class="lp-hero__actions">
-        <a class="lp-btn is-primary" href="https://github.com/thalesholleben/syntax-routines/releases/latest">
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <a class="lp-btn is-primary fx-btn-shine" href="https://github.com/thalesholleben/syntax-routines/releases/latest">
+          <svg class="lp-btn__os" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M3 5.6 10.4 4.6v6.9H3zm8.6-1.1L21 3.1v8.4h-9.4zM3 12.5h7.4v6.9L3 18.4zm8.6 0H21v8.4l-9.4-1.3z"/></svg>
           Baixar para Windows
         </a>
-        <a class="lp-btn is-ghost" href="https://github.com/thalesholleben/syntax-routines">Ver no GitHub</a>
+        <a class="lp-btn is-ghost fx-btn-shine" href="https://github.com/thalesholleben/syntax-routines/releases/latest">
+          <svg class="lp-btn__os" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M16.3 12.5c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.6-1.3-.1-2.5.7-3.1.7-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2.1-1.4 2.5-.4 6.2 1 8.2.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.7 2.6-.7 1.2 0 1.6.7 2.7.7 1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.3-.1 0-2.1-.8-2.1-3.3zM14.4 6.2c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.6-1.3z"/></svg>
+          Baixar para Mac
+        </a>
       </div>
       <ul class="lp-hero__proof" aria-label="Fatos do projeto">
         <li>MIT, grátis</li>
         <li>Em uso diário desde 14/09/2026</li>
-        <li>Windows 10 e 11, Node.js 24</li>
+        <li>Windows 10 e 11, macOS 13+ (beta)</li>
       </ul>
       <p class="lp-hero__skill">Usa Claude Code ou Codex? Tem uma <a href="https://github.com/thalesholleben/syntax-routines/tree/main/skills">skill para o próprio agente cuidar das rotinas</a>.</p>
+      <a class="fx-scroll-hint" href="#como-funciona"><span>Role</span><i></i></a>
     </div>
     <div class="lp-hero__visual">
       <div class="fx-glow" aria-hidden="true"></div>
+      <div class="fx-particles" data-particles="18" aria-hidden="true"></div>
       <div class="lp-days" aria-hidden="true">
         <span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span><span>DOM</span>
         <i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i class="is-on"></i><i></i><i></i>
@@ -115,11 +120,11 @@
         <div class="lp-hero__frame">
           <div class="lp-hero__bar" aria-hidden="true"><span><i></i><i></i><i></i> 127.0.0.1:4090</span><span>Syntax Routines</span></div>
           <picture>
-            <source type="image/webp" srcset="img/rotinas-640.webp 640w, img/rotinas-960.webp 960w, img/rotinas-1280.webp 1280w" sizes="(min-width: 1024px) 560px, 100vw">
-            <img src="img/rotinas.png" width="1280" height="900" fetchpriority="high" decoding="async" alt="Painel do Syntax Routines com quatro rotinas: dois scripts, uma rotina Claude Code e uma Codex, cada uma com a próxima execução e o resultado da última">
+            <source type="image/webp" srcset="img/dashboard-640.webp 640w, img/dashboard-960.webp 960w, img/dashboard-1280.webp 1280w" sizes="(min-width: 1024px) 560px, 100vw">
+            <img src="img/dashboard.png" width="1280" height="900" fetchpriority="high" decoding="async" alt="Dashboard de operação com próximos eventos, resultados das execuções e taxa de erro">
           </picture>
         </div>
-        <figcaption class="lp-hero__caption">O painel, com dados de demonstração. Cada rotina mostra a próxima execução e como terminou a última.</figcaption>
+        <figcaption class="lp-hero__caption">Sua operação em uma visão. Dashboard real com dados de demonstração.</figcaption>
       </figure>
     </div>
   </div>
@@ -132,7 +137,7 @@
       <li><b>Claude Code</b><p>Prompt por stdin, modelo e esforço definidos por você, bypass de permissões dentro da pasta.</p></li>
       <li><b>Codex</b><p>O mesmo caminho, com troca automática de agente quando o limite de uso acaba.</p></li>
       <li><b>Scripts</b><p>Uma linha de comando como no cmd. Código de saída 0 conclui, qualquer outro é falha.</p></li>
-      <li><b>Windows 10 e 11</b><p>Instala sem administrador, sobe no logon do seu usuário e reinicia se cair.</p></li>
+      <li><b>Windows, Mac e Linux</b><p>Instala sem administrador, sobe no seu login e reinicia se cair. macOS em beta, Linux experimental.</p></li>
     </ul>
   </div>
 </section>
@@ -240,7 +245,7 @@
     <div class="fx-reveal">
       <p class="lp-kicker">Princípio</p>
       <h2 id="band-title">Não existe servidor, conta nem nuvem. É o seu PC, no horário que você marcou.</h2>
-      <p>Um processo local que sobe no logon, um banco SQLite na pasta do app e um painel que só escuta em 127.0.0.1. Quem tem a senha do painel manda no seu PC, então trate a senha como a do Windows.</p>
+      <p>Um processo local que sobe no seu login, um banco SQLite na pasta do app e um painel que só escuta em 127.0.0.1. Quem tem a senha do painel manda no seu PC, então trate a senha como a da sua conta no computador.</p>
     </div>
     <div class="lp-days is-accent is-live fx-reveal" aria-hidden="true" style="--fx-delay:120ms">
       <span>SEG</span><span>TER</span><span>QUA</span><span>QUI</span><span>SEX</span><span>SÁB</span><span>DOM</span>
@@ -295,42 +300,49 @@ acompanhe com: runs 3   |   saída: log 188</pre>
   </div>
 </section>
 
-<!-- 8 · capturas -->
+<!-- 8 · screenshots -->
 <section class="lp-shots" id="capturas" aria-labelledby="shots-title">
   <div class="lp-wrap">
     <div class="lp-title fx-reveal">
       <p class="lp-kicker">Por dentro</p>
-      <h2 id="shots-title">O painel inteiro cabe em <em>duas telas e um modal.</em></h2>
-      <p>Capturas reais com dados de demonstração, geradas numa instalação descartável. Nenhuma rotina de verdade aparece aqui.</p>
+      <h2 id="shots-title">Três telas. <em>Sua operação à vista.</em></h2>
+      <p>Dashboard, rotinas e ajustes. Veja o que acontece agora, o que vem depois e como configurar cada rotina. Capturas reais com dados de demonstração.</p>
     </div>
     <div class="lp-shots__grid fx-reveal-group">
       <figure class="fx-reveal is-wide">
-        <picture>
-          <source type="image/webp" srcset="img/modal-agente-640.webp 640w, img/modal-agente-960.webp 960w, img/modal-agente-1280.webp 1280w" sizes="(min-width: 768px) 60vw, 100vw">
-          <img src="img/modal-agente.png" width="1280" height="900" loading="lazy" decoding="async" alt="Modal de edição de uma rotina Claude Code: executor, modelo, esforço, dias, hora e prompt">
-        </picture>
-        <figcaption><b>Nova rotina de agente</b>Executor, modelo, esforço, dias, hora, prompt e o que fazer se o PC estava desligado.</figcaption>
+        <div class="lp-device is-laptop"><picture>
+          <source type="image/webp" srcset="img/dashboard-640.webp 640w, img/dashboard-960.webp 960w, img/dashboard-1280.webp 1280w" sizes="(min-width: 768px) 660px, 92vw">
+          <img src="img/dashboard.png" width="1280" height="900" loading="lazy" decoding="async" alt="Dashboard do Syntax Routines em um mockup de notebook">
+        </picture></div>
+        <figcaption><b>Centro de operação</b>Próximos eventos, execuções atuais e taxa de erro em uma única visão.</figcaption>
       </figure>
       <figure class="fx-reveal is-tall">
-        <picture>
-          <source type="image/webp" srcset="img/rotinas-mobile-390.webp">
-          <img src="img/rotinas-mobile.png" width="390" height="844" loading="lazy" decoding="async" alt="Lista de rotinas do Syntax Routines em tela de celular, com os mesmos cartões empilhados">
-        </picture>
-        <figcaption><b>No celular</b>O mesmo painel, para conferir do sofá o que rodou.</figcaption>
+        <div class="lp-device is-phone fx-float"><picture>
+          <source type="image/webp" srcset="img/dashboard-mobile-390.webp 390w" sizes="280px">
+          <img src="img/dashboard-mobile.png" width="390" height="844" loading="lazy" decoding="async" alt="Dashboard responsivo em um mockup de celular">
+        </picture></div>
+        <figcaption><b>Um layout que se adapta</b>O dashboard na largura de um celular. O app roda localmente no seu computador.</figcaption>
       </figure>
-      <figure class="fx-reveal">
-        <picture>
-          <source type="image/webp" srcset="img/modal-script-640.webp 640w, img/modal-script-960.webp 960w, img/modal-script-1280.webp 1280w" sizes="(min-width: 768px) 50vw, 100vw">
-          <img src="img/modal-script.png" width="1280" height="900" loading="lazy" decoding="async" alt="Modal de edição de uma rotina de script a cada 15 minutos, com o comando e o diretório">
-        </picture>
-        <figcaption><b>Rotina de script por intervalo</b>A cada 15 minutos nos dias marcados, com o comando e a pasta.</figcaption>
+      <figure class="fx-reveal ">
+        <div class="lp-device is-laptop"><picture>
+          <source type="image/webp" srcset="img/modal-agente-640.webp?v=20260915 640w, img/modal-agente-960.webp?v=20260915 960w, img/modal-agente-1280.webp?v=20260915 1280w" sizes="(min-width: 768px) 660px, 92vw">
+          <img src="img/modal-agente.png?v=20260915" width="1280" height="900" loading="lazy" decoding="async" alt="Modal de rotina Claude Code totalmente visível">
+        </picture></div>
+        <figcaption><b>Rotinas de agente</b>Escolha executor, modelo, esforço, agenda e prompt.</figcaption>
       </figure>
-      <figure class="fx-reveal">
-        <picture>
-          <source type="image/webp" srcset="img/ajustes-640.webp 640w, img/ajustes-960.webp 960w, img/ajustes-1280.webp 1280w" sizes="(min-width: 768px) 50vw, 100vw">
-          <img src="img/ajustes.png" width="1280" height="900" loading="lazy" decoding="async" alt="Ajustes: pasta mãe, binários, execuções em paralelo, e-mail de aviso e estado do agendador">
-        </picture>
-        <figcaption><b>Ajustes</b>Pasta mãe, binários do claude e do codex, paralelismo, conta de e-mail com selo de conexão e o estado do agendador.</figcaption>
+      <figure class="fx-reveal ">
+        <div class="lp-device is-laptop"><picture>
+          <source type="image/webp" srcset="img/modal-script-640.webp?v=20260915 640w, img/modal-script-960.webp?v=20260915 960w, img/modal-script-1280.webp?v=20260915 1280w" sizes="(min-width: 768px) 660px, 92vw">
+          <img src="img/modal-script.png?v=20260915" width="1280" height="900" loading="lazy" decoding="async" alt="Modal de rotina de script totalmente visível">
+        </picture></div>
+        <figcaption><b>Scripts no horário</b>Um comando, uma pasta e o intervalo de que você precisa.</figcaption>
+      </figure>
+      <figure class="fx-reveal is-settings">
+        <div class="lp-device is-laptop"><picture>
+          <source type="image/webp" srcset="img/ajustes-640.webp?v=20260915 640w, img/ajustes-960.webp?v=20260915 960w, img/ajustes-1280.webp?v=20260915 1280w" sizes="(min-width: 768px) 660px, 92vw">
+          <img src="img/ajustes.png?v=20260915" width="1280" height="900" loading="lazy" decoding="async" alt="Tela de ajustes do Syntax Routines em um mockup de notebook">
+        </picture></div>
+        <figcaption><b>Tudo no seu lugar</b>Pasta mãe, execuções em paralelo e configuração dos avisos de falha.</figcaption>
       </figure>
     </div>
   </div>
@@ -342,25 +354,37 @@ acompanhe com: runs 3   |   saída: log 188</pre>
     <div class="fx-reveal">
       <p class="lp-kicker">Instalação</p>
       <div class="lp-title">
-        <h2 id="install-title">Um PowerShell comum, <em>sem administrador.</em></h2>
-        <p>Windows 10 ou 11 e Node.js 24.13 ou mais novo. Para rotinas de agente, o <code>claude</code> e o <code>codex</code> já instalados e autenticados no seu usuário.</p>
+        <h2 id="install-title">Um comando, <em>sem administrador.</em></h2>
+        <p>Windows 10 ou 11, ou macOS 13 ou mais novo (beta), com Node.js 24.13 ou mais novo. Para rotinas de agente, o <code>claude</code> e o <code>codex</code> já instalados e autenticados no seu usuário.</p>
       </div>
-      <div class="lp-install__panel">
+      <div class="lp-install__panel fx-grid-lines">
+        <p class="lp-install__os"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M3 5.6 10.4 4.6v6.9H3zm8.6-1.1L21 3.1v8.4h-9.4zM3 12.5h7.4v6.9L3 18.4zm8.6 0H21v8.4l-9.4-1.3z"/></svg> Windows</p>
         <pre id="install-cmd"><em># na pasta onde você guarda projetos</em>
 git clone https://github.com/thalesholleben/syntax-routines.git
 cd syntax-routines
 .\service\install.ps1 <b>-Build</b></pre>
         <div class="lp-install__row">
-          <a class="lp-btn is-primary" href="https://github.com/thalesholleben/syntax-routines/releases/latest">Baixar a última versão</a>
+          <a class="lp-btn is-primary fx-btn-shine" href="https://github.com/thalesholleben/syntax-routines/releases/latest">Baixar a última versão</a>
           <button class="lp-btn is-ghost" type="button" data-copy="install-cmd" data-copied="Copiado" hidden>Copiar comandos</button>
           <span>Prefere o zip? A release traz o mesmo conteúdo do clone.</span>
         </div>
       </div>
+      <div class="lp-install__panel fx-grid-lines">
+        <p class="lp-install__os"><svg viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M16.3 12.5c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.6-1.3-.1-2.5.7-3.1.7-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2.1-1.4 2.5-.4 6.2 1 8.2.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.7 2.6-.7 1.2 0 1.6.7 2.7.7 1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.3-.1 0-2.1-.8-2.1-3.3zM14.4 6.2c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.6-1.3z"/></svg> macOS e Linux <b>beta</b></p>
+        <pre id="install-cmd-mac"><em># no terminal, sem sudo</em>
+git clone https://github.com/thalesholleben/syntax-routines.git
+cd syntax-routines
+./service/install.sh <b>--build</b></pre>
+        <div class="lp-install__row">
+          <button class="lp-btn is-ghost" type="button" data-copy="install-cmd-mac" data-copied="Copiado" hidden>Copiar comandos</button>
+          <span>Registra um LaunchAgent no Mac, ou uma unit do systemd no Linux.</span>
+        </div>
+      </div>
     </div>
     <div class="lp-install__notes fx-reveal">
-      <div><b>O que o script faz</b><p>Instala as dependências, gera o build, registra a tarefa agendada <code>SyntaxRoutines</code> no logon do seu usuário (sem janela, reinicia se cair) e cria o atalho na área de trabalho, que abre o painel em modo app no Chrome ou no Edge.</p></div>
+      <div><b>O que o script faz</b><p>Instala as dependências, gera o build e registra o serviço que sobe no seu login, sem janela e reiniciando se cair: tarefa agendada no Windows, LaunchAgent no Mac, unit do systemd no Linux. Também cria o atalho que abre o painel em modo app no Chrome ou no Edge.</p></div>
       <div><b>Primeiro acesso</b><p>Você cria a senha do painel. Depois, em Ajustes, define a pasta mãe onde as rotinas podem rodar e clica em Configurar e-mail: Gmail com senha de app ou outro servidor SMTP, testado na hora de salvar.</p></div>
-      <div><b>Para remover</b><p><code>.\service\uninstall.ps1</code>. Os dados em <code>data/</code> ficam. Sem instalar a tarefa: <code>npm install</code>, <code>npm run build</code> e <code>start.cmd</code>.</p></div>
+      <div><b>Para remover</b><p><code>.\service\uninstall.ps1</code> no Windows, <code>./service/uninstall.sh</code> no Mac e no Linux. Os dados em <code>data/</code> ficam. Sem instalar o serviço: <code>npm install</code>, <code>npm run build</code> e <code>start.cmd</code> (ou <code>./start.sh</code>).</p></div>
     </div>
   </div>
 </section>
@@ -379,7 +403,7 @@ cd syntax-routines
       </details>
       <details>
         <summary>Tela bloqueada interrompe?</summary>
-        <p>Não. O app roda como tarefa agendada do seu usuário, então precisa de você logado, mas não de tela desbloqueada. Se o PC ligar e ninguém entrar, as rotinas esperam o logon.</p>
+        <p>Não. O app roda como serviço do seu usuário (tarefa agendada no Windows, LaunchAgent no Mac), então precisa de você logado, mas não de tela desbloqueada. Se o computador ligar e ninguém entrar, as rotinas esperam o login.</p>
       </details>
       <details>
         <summary>E quando o limite de uso do Claude ou do Codex acaba?</summary>
@@ -387,11 +411,15 @@ cd syntax-routines
       </details>
       <details>
         <summary>Como funciona o aviso por e-mail?</summary>
-        <p>Em Ajustes, o botão Configurar e-mail abre um modal: escolha Gmail (com uma senha de app, que exige a verificação em duas etapas) ou outro servidor SMTP, o e-mail que envia e quem recebe. Ao salvar, o app testa a conexão e mostra Conectado ou o motivo da falha, e a senha fica cifrada com a chave do seu usuário do Windows. Toda execução que termina em falha gera um e-mail com a rotina, o erro e o link do painel; sucesso não avisa. Quem prefere ainda pode usar o <code>.env</code>.</p>
+        <p>Em Ajustes, o botão Configurar e-mail abre um modal: escolha Gmail (com uma senha de app, que exige a verificação em duas etapas) ou outro servidor SMTP, o e-mail que envia e quem recebe. Ao salvar, o app testa a conexão e mostra Conectado ou o motivo da falha, e a senha vai para o cofre do seu sistema: DPAPI no Windows, Chaves no macOS, chaveiro no Linux. Toda execução que termina em falha gera um e-mail com a rotina, o erro e o link do painel; sucesso não avisa. Quem prefere ainda pode usar o <code>.env</code>.</p>
       </details>
       <details>
         <summary>Isso é seguro? O agente roda com acesso total.</summary>
-        <p>Sim, e é de propósito: rotina de agente roda o Claude Code ou o Codex com <code>--dangerously-skip-permissions</code>, e rotina de script roda qualquer comando, sempre dentro da pasta mãe que você escolheu, conferida por caminho real. O servidor escuta só em 127.0.0.1, exige senha (scrypt) para tudo além do login e guarda Host e Origin em toda a API. Quem tem a senha do painel, ou acesso à pasta do app, manda no seu PC: trate a senha como a senha do próprio Windows.</p>
+        <p>Sim, e é de propósito: rotina de agente roda o Claude Code ou o Codex com <code>--dangerously-skip-permissions</code>, e rotina de script roda qualquer comando, sempre dentro da pasta mãe que você escolheu, conferida por caminho real. O servidor escuta só em 127.0.0.1, exige senha (scrypt) para tudo além do login e guarda Host e Origin em toda a API. Quem tem a senha do painel, ou acesso à pasta do app, manda no seu PC: trate a senha como a senha da sua conta no computador.</p>
+      </details>
+      <details>
+        <summary>Funciona no Mac?</summary>
+        <p>Funciona, em beta desde 15/09/2026. O instalador registra um LaunchAgent que sobe o app no seu login, o atalho abre o painel em janela própria e a senha do e-mail fica nas Chaves do macOS. A cada envio de código, o projeto roda em uma máquina macOS de verdade: testes, build, teste de tela no Chrome e instalar e desinstalar o serviço. O que só dá para conferir com um Mac na mesa (o primeiro login, o aviso das Chaves, o Mac Intel) está listado no repositório, em <code>docs/runbooks/macos-primeira-execucao.md</code>. No Linux é o mesmo caminho, em versão experimental, com <code>systemd --user</code>.</p>
       </details>
       <details>
         <summary>Depende do Syntax Ops ou de outro produto?</summary>
@@ -421,11 +449,14 @@ cd syntax-routines
       <h2 id="close-title">A próxima segunda às 09:00 <em>já pode rodar sozinha.</em></h2>
       <p>Clone ou baixe, rode o instalador, crie a senha e cadastre a primeira rotina. Ou peça para o seu agente fazer isso.</p>
       <div class="lp-close__actions">
-        <a class="lp-btn is-primary" href="https://github.com/thalesholleben/syntax-routines/releases/latest">
-          <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12m0 0 5-5m-5 5-5-5M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+        <a class="lp-btn is-primary fx-btn-shine" href="https://github.com/thalesholleben/syntax-routines/releases/latest">
+          <svg class="lp-btn__os" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M3 5.6 10.4 4.6v6.9H3zm8.6-1.1L21 3.1v8.4h-9.4zM3 12.5h7.4v6.9L3 18.4zm8.6 0H21v8.4l-9.4-1.3z"/></svg>
           Baixar para Windows
         </a>
-        <a class="lp-btn is-ghost" href="https://github.com/thalesholleben/syntax-routines">Ver no GitHub</a>
+        <a class="lp-btn is-ghost fx-btn-shine" href="https://github.com/thalesholleben/syntax-routines/releases/latest">
+          <svg class="lp-btn__os" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M16.3 12.5c0-2.1 1.7-3.1 1.8-3.2-1-1.4-2.5-1.6-3-1.6-1.3-.1-2.5.7-3.1.7-.6 0-1.6-.7-2.7-.7-1.4 0-2.7.8-3.4 2.1-1.4 2.5-.4 6.2 1 8.2.7 1 1.5 2.1 2.6 2.1 1 0 1.4-.7 2.6-.7 1.2 0 1.6.7 2.7.7 1.1 0 1.8-1 2.5-2 .8-1.1 1.1-2.2 1.1-2.3-.1 0-2.1-.8-2.1-3.3zM14.4 6.2c.6-.7 1-1.7.9-2.7-.9 0-2 .6-2.6 1.3-.6.7-1.1 1.7-.9 2.7 1 .1 2-.5 2.6-1.3z"/></svg>
+          Baixar para Mac
+        </a>
       </div>
       <p class="lp-close__meta">MIT · <a href="https://github.com/thalesholleben/syntax-routines/tree/main/skills">skill para Claude Code e Codex</a> · <a href="https://github.com/thalesholleben/syntax-routines/blob/main/CHANGELOG.md">changelog</a></p>
     </div>
@@ -438,7 +469,7 @@ cd syntax-routines
   <div class="lp-wrap">
     <div class="lp-footer__brand">
       <a href="https://syntaxlab.com.br" aria-label="SyntaxLab"><img src="img/syntax-logo.svg" alt="SyntaxLab" width="132" height="25"></a>
-      <p>Syntax Routines é um produto open source da SyntaxLab, a software house de Thales Gomes. Rotinas de Claude Code, Codex e scripts no Windows.</p>
+      <p>Syntax Routines é um produto open source da SyntaxLab, a software house de Thales Gomes. Rotinas de Claude Code, Codex e scripts no Windows, no Mac e no Linux.</p>
     </div>
     <div class="lp-footer__cols">
       <div>
@@ -475,6 +506,6 @@ cd syntax-routines
   </div>
 </footer>
 
-<script defer src="js/site.js"></script>
+<script defer src="js/site.js?v=20260916-mac"></script>
 </body>
 </html>

@@ -53,13 +53,23 @@ uma célula de cada vez acendendo em `@keyframes`, desligado em `prefers-reduced
 
 Sem ruído, sem marca d'água, sem vidro. Sombra difusa só na captura do hero e no terminal.
 
-## Movimento (leve)
+## Movimento (médio, decidido em 15/09/2026)
+
+Era leve; o dono pediu mais presença ao anunciar o macOS. O teto continua sendo o mesmo:
+nada de biblioteca de animação, nada que mexa em layout e tudo desligado em
+`prefers-reduced-motion`.
 
 - Reveal por scroll (`fx-reveal`, IntersectionObserver em `js/site.js`), com stagger de 90 ms
   nos grupos. Sem JS a página nasce inteira visível (`html[data-js]` guarda o estado inicial) e
   o `<noscript>` reforça.
 - Grade de dias com pulso de 6 s.
 - Transições de 160 a 250 ms em botão e card.
+- Brilho varrendo os CTAs a cada 7 s (`fx-btn-shine`), com o botão do Mac defasado em 3,5 s
+  para os dois não piscarem juntos.
+- Pontos de luz subindo atrás da captura do hero (`fx-particles`, criados no `js/site.js`).
+- Grade vertical nos painéis de instalação (`fx-grid-lines`) e flutuação lenta no celular da
+  galeria (`fx-float`), um por tela.
+- Sublinhado direcional nos links do menu (`fx-underline`) e dica de rolagem no hero.
 - Tudo desligado em `prefers-reduced-motion: reduce`. Nada de GSAP, Lenis ou WebGL.
 
 ## Densidade: padrão
@@ -71,9 +81,9 @@ mobile e 32px acima de 768px.
 
 | Onde | Imagem | Origem | Tratamento |
 | --- | --- | --- | --- |
-| Hero | `rotinas` (1280x900) | `docs/assets/screenshots/rotinas.png` | webp 640/960/1280 + png 960, moldura, leve inclinação no desktop, `fetchpriority="high"` |
+| Hero | `dashboard` (1280x900), versão EN própria | `docs/assets/screenshots/dashboard.png` | webp 640/960/1280 + png 960, moldura, leve inclinação no desktop, `fetchpriority="high"` |
 | Tipos de rotina | `anthropic.svg`, `openai.svg`, terminal inline | `public/brand/` | pintados no `--ink` via `mask` |
-| Capturas | `modal-agente`, `modal-script`, `ajustes`, `rotinas-mobile` | `docs/assets/screenshots/` | webp + png, `loading="lazy"`, `width`/`height` reservados |
+| Capturas | `dashboard`, `dashboard-mobile`, `modal-agente`, `modal-script`, `ajustes`, PT e EN | `docs/assets/screenshots/` | molduras CSS de notebook/celular, webp + png, `loading="lazy"`, dimensões reservadas |
 | Fecho | `login-card` (recorte x 600..1280 de `login.png`) | `docs/assets/screenshots/login.png` | ancorado à direita, atrás do véu, opacidade .5 |
 | OG | `login-bg-desktop.webp` | `public/brand/` | `docs/assets/og/*.html`, renderizado por `scripts/render-og.mjs` |
 

@@ -292,7 +292,7 @@ html[data-js] .fx-reveal-group > * { transition-delay: calc(var(--fx-stagger, 90
 .lp-shots { background: var(--surface); }
 .lp-shots__grid { display: grid; gap: 22px; margin-top: 44px; }
 .lp-shots figure { display: flex; flex-direction: column; gap: 12px; }
-.lp-shots figure img { border: 1px solid var(--line-strong); border-radius: var(--r-card); background: var(--bg); }
+.lp-shots figure img { display: block; width: 100%; height: auto; background: var(--bg); }
 .lp-shots figcaption { font-size: 13.5px; color: var(--muted); }
 .lp-shots figcaption b { display: block; color: var(--ink); font-weight: 600; margin-bottom: 2px; }
 .lp-shots figure.is-tall { max-width: 300px; }
@@ -301,8 +301,22 @@ html[data-js] .fx-reveal-group > * { transition-delay: calc(var(--fx-stagger, 90
   .lp-shots figure { grid-column: span 3; }
   .lp-shots figure.is-wide { grid-column: span 4; }
   .lp-shots figure.is-tall { grid-column: span 2; max-width: none; justify-self: center; width: min(100%, 300px); }
-  .lp-shots figure:nth-child(2) { transform: translateY(28px); }
+  .lp-shots figure.is-settings { grid-column: span 6; display: grid; grid-template-columns: 1.2fr 1fr; align-items: center; gap: 48px; }
 }
+
+/* Lightweight device frames: the screenshot stays a real, readable product capture. */
+.lp-device { position: relative; isolation: isolate; background: #090a0c; }
+.lp-device picture { display: block; overflow: hidden; }
+.lp-device.is-laptop { margin: 0 3% 16px; padding: 15px 7px 8px; border: 2px solid #555961; border-bottom-color: #858a91; border-radius: 14px 14px 5px 5px; box-shadow: 0 18px 35px -15px #000b, inset 0 0 0 1px #17191c; }
+.lp-device.is-laptop::before { content: ""; position: absolute; top: 5px; left: calc(50% - 2px); width: 4px; height: 4px; background: #263545; border-radius: 50%; box-shadow: 0 0 0 1px #30353b; }
+.lp-device.is-laptop::after { content: ""; position: absolute; height: 13px; left: -4%; width: 108%; bottom: -13px; border-radius: 2px 2px 50% 50% / 2px 2px 10px 10px; background: linear-gradient(90deg, #60656d, #b7bbc0 8%, #777d84 45%, #555b62 50%, #777d84 55%, #b7bbc0 92%, #60656d); box-shadow: inset 0 -4px 2px #272a30, 0 14px 22px -8px #000b; }
+.lp-device.is-laptop picture { border-radius: 4px; }
+.lp-device.is-phone { width: 100%; padding: 24px 7px 17px; border: 2px solid #717780; border-radius: 34px; box-shadow: inset 0 0 0 3px #202328, 0 22px 38px -15px #000b; }
+.lp-device.is-phone::before { content: ""; position: absolute; width: 42px; height: 5px; top: 10px; left: calc(50% - 21px); border-radius: 5px; background: #343941; }
+.lp-device.is-phone::after { content: ""; position: absolute; width: 65px; height: 3px; bottom: 7px; left: calc(50% - 32px); border-radius: 3px; background: #949aa2; }
+.lp-device.is-phone picture { border-radius: 11px 11px 20px 20px; }
+.lp-shots__grid { row-gap: 48px; }
+@media (max-width: 767px) { .lp-shots figure.is-tall { width: 260px; justify-self: center; } }
 
 /* ---------- lp-install ---------- */
 .lp-install .lp-wrap { display: grid; gap: 34px; }
@@ -367,11 +381,53 @@ html[data-js] .fx-reveal-group > * { transition-delay: calc(var(--fx-stagger, 90
   .lp-footer__legal { grid-column: 1 / -1; }
 }
 
+/* ---------- efeitos extras do kit (botao com brilho, particulas, grade, flutuacao) ---------- */
+.fx-btn-shine { position: relative; overflow: hidden; }
+.fx-btn-shine::after {
+  content: ""; position: absolute; top: 0; bottom: 0; left: -60%; width: 38%; pointer-events: none;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .34), transparent);
+  transform: skewX(-18deg); animation: fx-shine 7s ease-in-out infinite;
+}
+.fx-btn-shine.is-ghost::after { background: linear-gradient(100deg, transparent, rgba(30, 157, 200, .3), transparent); animation-delay: 3.5s; }
+@keyframes fx-shine { 0% { left: -60%; } 22%, 100% { left: 130%; } }
+
+.fx-particles { position: absolute; inset: 0; z-index: 0; pointer-events: none; overflow: hidden; }
+.fx-particles > i { position: absolute; width: 3px; height: 3px; border-radius: 50%; background: var(--accent); filter: blur(1px); opacity: .5; animation: fx-rise linear infinite; }
+@keyframes fx-rise { 0% { transform: translateY(0); opacity: 0; } 12% { opacity: .55; } 100% { transform: translateY(-260px); opacity: 0; } }
+
+.fx-grid-lines::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  opacity: var(--fx-grid-opacity, .1);
+  background: repeating-linear-gradient(90deg, transparent 0, transparent calc(8.333% - 1px), rgba(255, 255, 255, .1) 8.333%);
+}
+
+.fx-float { animation: fx-float var(--fx-float-dur, 7s) ease-in-out infinite; }
+@keyframes fx-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+
+.fx-underline { position: relative; }
+.fx-underline::after { content: ""; position: absolute; left: 0; right: 0; bottom: -4px; height: 1px; background: currentColor; transform: scaleX(0); transform-origin: bottom right; transition: transform .35s var(--ease); }
+.fx-underline:hover::after, .fx-underline:focus-visible::after { transform: scaleX(1); transform-origin: bottom left; }
+
+.fx-scroll-hint { display: inline-flex; align-items: center; gap: 12px; margin-top: 26px; font-family: var(--font-mono); font-size: 10px; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; color: var(--faint); text-decoration: none; }
+.fx-scroll-hint i { position: relative; width: 46px; height: 1px; overflow: hidden; background: rgba(255, 255, 255, .16); }
+.fx-scroll-hint i::after { content: ""; position: absolute; inset: 0; width: 45%; background: var(--accent); animation: fx-scroll-line 2.6s ease-in-out infinite; }
+@keyframes fx-scroll-line { 0% { transform: translateX(-110%); } 60%, 100% { transform: translateX(240%); } }
+
+/* ---------- botao com marca do sistema ---------- */
+.lp-btn__os { width: 17px; height: 17px; opacity: .92; }
+.lp-btn.is-ghost .lp-btn__os { color: var(--accent); opacity: 1; }
+.lp-install__os { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; font-family: var(--font-mono); font-size: 11.5px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+.lp-install__os svg { width: 15px; height: 15px; color: var(--accent); }
+.lp-install__os b { font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .08em; color: var(--accent); }
+.lp-install__panel + .lp-install__panel { margin-top: 16px; }
+
 /* ---------- movimento reduzido ---------- */
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   html[data-js] .fx-reveal { opacity: 1; transform: none; transition: none; }
   .lp-days.is-live i.is-on { animation: none; }
+  .fx-btn-shine::after, .fx-particles, .fx-scroll-hint i::after { animation: none; display: none; }
+  .fx-float { animation: none; }
   .lp-hero__frame, .lp-kinds article, .lp-btn, .lp-faq summary::after { transition: none; }
   .lp-hero__visual:hover .lp-hero__frame { transform: rotateY(-7deg) rotateX(2deg); }
 }

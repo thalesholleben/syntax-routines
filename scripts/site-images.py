@@ -17,13 +17,20 @@ OUT = ROOT / "site" / "img"
 
 # nome: larguras do srcset (a maior nunca passa do original)
 PLAN = {
+    "dashboard": (640, 960, 1280),
+    "dashboard-en": (640, 960, 1280),
+    "dashboard-mobile": (390,),
+    "dashboard-mobile-en": (390,),
     "rotinas": (640, 960, 1280),
     "modal-agente": (640, 960, 1280),
     "modal-script": (640, 960, 1280),
     "ajustes": (640, 960, 1280),
+    "modal-agente-en": (640, 960, 1280),
+    "modal-script-en": (640, 960, 1280),
+    "ajustes-en": (640, 960, 1280),
     "rotinas-mobile": (390,),
 }
-FALLBACK_WIDTH = {"rotinas-mobile": 390, "login-card": 680}
+FALLBACK_WIDTH = {"rotinas-mobile": 390, "dashboard-mobile": 390, "dashboard-mobile-en": 390, "login-card": 680}
 # recorte (nome de saida: origem, caixa) para o fundo do fecho: so o cartao de senha, sem o titulo
 CROPS = {"login-card": ("login", (600, 0, 1280, 900))}
 

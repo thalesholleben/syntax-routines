@@ -1,8 +1,8 @@
 # Syntax Routines
 
-> Scheduled Claude Code, Codex and script routines that run on their own on Windows, at the right time, with an e-mail alert when they fail. No server, no account, no cloud: one local process, one SQLite database and a panel on 127.0.0.1. Open source, MIT, by SyntaxLab.
+> Scheduled Claude Code, Codex and script routines that run on their own on Windows, macOS and Linux, at the right time, with an e-mail alert when they fail. No server, no account, no cloud: one local process, one SQLite database and a panel on 127.0.0.1. Open source, MIT, by SyntaxLab.
 
-Syntax Routines is a Windows desktop scheduler for people who run Claude Code or Codex daily. You register who runs it (Claude Code, Codex or a command line), the days, the time or the interval (5 min to 12 h), and what to do. At the scheduled time the app runs it on the PC, with the user's own account and inside the chosen folder, and sends an e-mail only when something fails. It ships with a CLI (`routines.cmd`) and an agent skill so Claude Code or Codex can list, suggest and, after the user's confirmation, create routines. In daily use since 2026-09-14, with seven routines migrated from the Windows Task Scheduler. Version 0.1.
+Syntax Routines is a desktop scheduler for people who run Claude Code or Codex daily. Windows is the daily-use platform; macOS is beta and Linux experimental, both verified by CI on real machines. You register who runs it (Claude Code, Codex or a command line), the days, the time or the interval (5 min to 12 h), and what to do. At the scheduled time the app runs it on the PC, with the user's own account and inside the chosen folder, and sends an e-mail only when something fails. It ships with a CLI (`routines.cmd`, `routines.sh`) and an agent skill so Claude Code or Codex can list, suggest and, after the user's confirmation, create routines. In daily use since 2026-09-14, with seven routines migrated from the Windows Task Scheduler. Version 0.1.
 
 ## Pages
 

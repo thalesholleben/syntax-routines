@@ -218,6 +218,10 @@ function addByCli(routine) {
 }
 
 async function shot(page, name) {
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(1200);
+  await page.evaluate(() => Promise.all(document.getAnimations().filter(animation =>
+    animation.effect?.getComputedTiming().iterations !== Infinity).map(animation => animation.finished.catch(() => {}))));
   await page.screenshot({ path: path.join(outputDir, `${name}${suffix}.png`) });
   console.log(`foto  ${name}${suffix}.png`);
 }
