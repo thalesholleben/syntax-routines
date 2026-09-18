@@ -36,7 +36,17 @@ import { checkDirectory, listDirectories } from "./directories";
 import { DEFAULT_LANGUAGE, LANGUAGES, LocalizedError, messages, type Language, type Messages, type TextKey } from "./i18n";
 import type { MailService } from "./mailer";
 import { buildTestEmail } from "./notifier";
-import { createRoutine, deleteRoutine, getRun, listRoutines, listRuns, NotFoundError, updateRoutine, type RoutineInput } from "./routines";
+import {
+  createRoutine,
+  deleteRoutine,
+  getRun,
+  listRoutines,
+  listRuns,
+  NotFoundError,
+  setRoutineEnabled,
+  updateRoutine,
+  type RoutineInput
+} from "./routines";
 import type { Scheduler } from "./scheduler";
 import { getMeta, readSettings, writeSettings } from "./settings";
 
@@ -169,6 +179,7 @@ function mailSchemaFor(m: Messages) {
 
 const languageSchema = z.object({ language: z.enum(LANGUAGES) });
 const idSchema = z.coerce.number().int().positive();
+const enabledSchema = z.object({ isEnabled: z.boolean() });
 const runsQuerySchema = z.object({
   beforeId: z.coerce.number().int().positive().optional(),
   limit: z.coerce.number().int().min(1).max(200).default(50)
@@ -388,6 +399,14 @@ export function createProtectedRouter({
   router.put("/routines/:id", (req, res) => {
     const id = parseId(req.params.id);
     updateRoutine(db, id, parseRoutine(req.body, req.language), now());
+    res.json({ routine: findRoutine(id, req.language) });
+  });
+
+  // Interruptor do cartao: so o liga/desliga, sem reenviar o cadastro inteiro. O PUT exige diretorio valido,
+  // e uma rotina cuja pasta sumiu tambem precisa poder ser pausada.
+  router.patch("/routines/:id/enabled", (req, res) => {
+    const id = parseId(req.params.id);
+    setRoutineEnabled(db, id, parse(enabledSchema, req.body).isEnabled, now());
     res.json({ routine: findRoutine(id, req.language) });
   });
 

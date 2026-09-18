@@ -128,6 +128,56 @@ export function Badge({ tone = "muted", children, className }: { tone?: string; 
   );
 }
 
+/**
+ * Interruptor liga/desliga (`role="switch"`): estado e acao no mesmo lugar, para o canto do cartao da rotina.
+ * O botao inteiro e o alvo de toque (44px no celular, pela base do index.css); o trilho e so o desenho.
+ */
+export function Switch({
+  checked,
+  onChange,
+  label,
+  title,
+  disabled,
+  className
+}: {
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+  label: string;
+  title?: string;
+  disabled?: boolean;
+  className?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      title={title}
+      disabled={disabled}
+      onClick={() => onChange(!checked)}
+      className={cn(
+        "inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full disabled:cursor-default disabled:opacity-50",
+        className
+      )}
+    >
+      <span
+        className={cn(
+          "flex h-5 w-9 items-center rounded-full border p-0.5 transition-colors",
+          checked ? "border-[var(--color-primary)]/60 bg-[var(--color-primary)]/25" : "border-[var(--color-border-strong)] bg-[var(--color-surface-3)]"
+        )}
+      >
+        <span
+          className={cn(
+            "size-4 rounded-full transition-transform",
+            checked ? "translate-x-4 bg-[var(--color-primary)]" : "bg-[var(--color-fg-subtle)]"
+          )}
+        />
+      </span>
+    </button>
+  );
+}
+
 export function Spinner({ className }: { className?: string }) {
   return (
     <span

@@ -6,7 +6,7 @@ import { ProviderMark } from "../components/Logo";
 import { PageHeader } from "../components/PageHeader";
 import { RoutineModal } from "../components/RoutineModal";
 import { RunOutputModal } from "../components/RunOutputModal";
-import { Badge, Button, Card, ErrorBox, Skeleton } from "../components/ui";
+import { Badge, Button, Card, ErrorBox, Skeleton, Switch } from "../components/ui";
 import { useI18n } from "../i18n";
 import { apiRequest, formatApiError } from "../lib/api";
 import { cn } from "../lib/cn";
@@ -208,6 +208,9 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
                     routine={routine}
                     onRunNow={() => void act(() => apiRequest(`/api/routines/${routine.id}/run-now`, { method: "POST" }))}
                     onCancel={(runId) => void act(() => apiRequest(`/api/runs/${runId}/cancel`, { method: "POST" }))}
+                    onToggle={(isEnabled) =>
+                      act(() => apiRequest(`/api/routines/${routine.id}/enabled`, { method: "PATCH", body: { isEnabled } }))
+                    }
                     onEdit={() => setEditing({ routine })}
                     onDelete={() => {
                       if (window.confirm(m.confirmDelete(routine.name))) {
@@ -356,6 +359,7 @@ function RoutineCard({
   routine,
   onRunNow,
   onCancel,
+  onToggle,
   onEdit,
   onDelete,
   onShowOutput
@@ -363,6 +367,7 @@ function RoutineCard({
   routine: RoutineDto;
   onRunNow: () => void;
   onCancel: (runId: number) => void;
+  onToggle: (isEnabled: boolean) => Promise<void>;
   onEdit: () => void;
   onDelete: () => void;
   onShowOutput: (runId: number) => void;
@@ -370,6 +375,7 @@ function RoutineCard({
   const { m } = useI18n();
   const f = useFormat();
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [isToggling, setIsToggling] = useState(false);
   const { activeRun, lastRun } = routine;
   const isRunning = activeRun?.status === "RUNNING";
 
@@ -388,7 +394,6 @@ function RoutineCard({
         <ProviderMark kind={routine.agentKind} />
         <Badge tone={AGENT_TONE[routine.agentKind]}>{f.agentLabel[routine.agentKind]}</Badge>
         <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-[var(--color-fg)]">{routine.name}</h2>
-        {!routine.isEnabled && <Badge tone="muted">{m.paused}</Badge>}
         {activeRun && (
           <Badge tone={RUN_STATUS_TONE[activeRun.status]}>
             {isRunning && (
@@ -399,6 +404,17 @@ function RoutineCard({
             {f.runStatusLabel[activeRun.status]}
           </Badge>
         )}
+        {/* Pausar e voltar a rodar sem abrir a rotina. Desligada, ela some do horario, mas "Executar agora" continua. */}
+        <Switch
+          checked={routine.isEnabled}
+          disabled={isToggling}
+          label={m.toggleNamed(routine.name)}
+          title={routine.isEnabled ? m.pauseRoutine : m.enableRoutine}
+          onChange={(isEnabled) => {
+            setIsToggling(true);
+            void onToggle(isEnabled).finally(() => setIsToggling(false));
+          }}
+        />
       </div>
 
       <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-fg-muted)]">

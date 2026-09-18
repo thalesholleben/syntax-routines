@@ -30,7 +30,7 @@ Sem o build (repositório clonado, app não instalado), o equivalente é
 | `log <execução> [--tail N]` | saída de uma execução (o mesmo log que o painel mostra) |
 | `add <rotina.json>` | cria uma rotina |
 | `edit <id> <patch.json>` | altera só os campos presentes no arquivo |
-| `enable <id>` / `disable <id>` | liga e desliga a rotina |
+| `enable <id>` / `disable <id>` | liga e desliga a rotina (vale mesmo se a pasta dela sumiu) |
 | `run-now <id>` | põe uma execução manual na fila |
 | `rm <id> --forca` | apaga a rotina e todo o histórico dela |
 

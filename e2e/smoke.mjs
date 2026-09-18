@@ -283,6 +283,20 @@ try {
   await page.getByRole("button", { name: "Limpar filtro" }).click();
   await scriptCard.waitFor();
 
+  // 5e. interruptor no canto do cartao: pausa e religa a rotina sem abrir o modal
+  const toggle = card.getByRole("switch");
+  await toggle.click();
+  await card.getByText("rotina pausada").waitFor();
+  check((await toggle.getAttribute("aria-checked")) === "false", "interruptor do cartão desliga a rotina");
+  const paused = await page.evaluate(() => fetch("/api/routines").then((response) => response.json()));
+  check(
+    paused.routines.some((routine) => routine.name === "Rotina e2e" && routine.isEnabled === false && routine.nextRunAt === null),
+    "rotina pausada perde a próxima execução na API"
+  );
+  await toggle.click();
+  await page.waitForFunction(() => !document.body.textContent.includes("rotina pausada"));
+  check((await toggle.getAttribute("aria-checked")) === "true", "interruptor do cartão liga a rotina de volta");
+
   // Dashboard uses the real temporary server and results produced above.
   await page.getByRole("button", { name: "Painel", exact: true }).click();
   await page.getByRole("heading", { name: "Centro de operação", exact: true }).waitFor();

@@ -172,12 +172,19 @@ describe("routines-cli", { timeout: 30_000 }, () => {
     expect(missing.out).toContain("rotina #99 não existe");
   });
 
-  it("disable e enable ligam e desligam a mesma rotina", () => {
+  it("disable e enable ligam e desligam a mesma rotina, ate com a pasta fora do ar", () => {
     cli("add", writeJson("script.json", scriptRoutine));
     expect(cli("disable", "1").out).toContain("desativada");
     expect(stored(1)?.isEnabled).toBe(false);
     expect(cli("enable", "1").out).toContain("ativa");
     expect(stored(1)?.isEnabled).toBe(true);
+
+    // Pasta apagada: o `edit` recusa (o cadastro inteiro e revalidado) e pausar, que e reversivel, continua.
+    rmSync(path.join(root, "projeto"), { recursive: true, force: true });
+    expect(cli("edit", "1", writeJson("nome.json", { name: "Fila parada" })).code).toBe(1);
+    const off = cli("disable", "1");
+    expect(off.code, off.out).toBe(0);
+    expect(stored(1)?.isEnabled).toBe(false);
   });
 
   it("run-now enfileira uma execucao manual e recusa a segunda enquanto a primeira nao termina", () => {

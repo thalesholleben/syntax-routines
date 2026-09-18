@@ -31,6 +31,7 @@ import {
   listRoutines,
   listRuns,
   NotFoundError,
+  setRoutineEnabled,
   toRoutineFields,
   updateRoutine,
   type RoutineRow,
@@ -214,6 +215,17 @@ function applyPatch(ctx: Ctx, row: RoutineRow, patch: Record<string, unknown>): 
   return view;
 }
 
+/**
+ * Liga e desliga sem passar pelo resto do cadastro, igual ao interruptor do cartao (PATCH /routines/:id/enabled):
+ * pausar uma rotina cuja pasta saiu do ar precisa funcionar, e o `applyPatch` exigiria a pasta mae e um diretorio valido.
+ */
+function setEnabled(ctx: Ctx, row: RoutineRow, isEnabled: boolean): RoutineView {
+  setRoutineEnabled(ctx.db, row.id, isEnabled, ctx.now);
+  const view = findView(ctx, row.id);
+  if (!view) fail(`rotina #${row.id} sumiu durante a alteração.`);
+  return view;
+}
+
 function findView(ctx: Ctx, id: number): RoutineView | null {
   return listRoutines(ctx.db, ctx.now, readSettings(ctx.db).rootDirectory).find((routine) => routine.id === id) ?? null;
 }
@@ -327,7 +339,7 @@ const COMMANDS: Record<string, Command> = {
     usage: "enable <id>",
     summary: "liga a rotina (volta a rodar no horário)",
     run(ctx, args) {
-      const view = applyPatch(ctx, requireRoutine(ctx, args[0]), { isEnabled: true });
+      const view = setEnabled(ctx, requireRoutine(ctx, args[0]), true);
       console.log(`#${view.id} ${view.name}: ativa. Próxima: ${view.nextRunAt === null ? "nenhuma" : when(view.nextRunAt)}`);
     }
   },
@@ -336,7 +348,7 @@ const COMMANDS: Record<string, Command> = {
     usage: "disable <id>",
     summary: "desliga a rotina (a fila dela é cancelada no próximo tick)",
     run(ctx, args) {
-      const view = applyPatch(ctx, requireRoutine(ctx, args[0]), { isEnabled: false });
+      const view = setEnabled(ctx, requireRoutine(ctx, args[0]), false);
       console.log(`#${view.id} ${view.name}: desativada.`);
     }
   },
