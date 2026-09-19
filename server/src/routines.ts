@@ -136,6 +136,18 @@ export function updateRoutine(db: Db, id: number, input: RoutineInput, nowMs: nu
   if (Number(result.changes) === 0) throw new NotFoundError("routineNotFound");
 }
 
+/**
+ * Liga e desliga a rotina mexendo so em `enabled`. E o caminho do interruptor do cartao e do `enable`/`disable`
+ * do CLI: pausar nao revalida o resto do cadastro, senao uma rotina cuja pasta saiu do ar nao poderia ser pausada.
+ * `updated_at` sobe junto, como em qualquer alteracao, para o agendador nao disparar horario que ja passou.
+ */
+export function setRoutineEnabled(db: Db, id: number, isEnabled: boolean, nowMs: number): void {
+  const result = db
+    .prepare("UPDATE routines SET enabled = :enabled, updated_at = :now WHERE id = :id")
+    .run({ enabled: isEnabled ? 1 : 0, now: nowMs, id });
+  if (Number(result.changes) === 0) throw new NotFoundError("routineNotFound");
+}
+
 export function getRoutine(db: Db, id: number): RoutineRow | undefined {
   return db.prepare(`SELECT ${ROUTINE_COLUMNS} FROM routines WHERE id = :id`).get({ id }) as unknown as RoutineRow | undefined;
 }

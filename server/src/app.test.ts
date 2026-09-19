@@ -202,6 +202,7 @@ const PROTECTED_ROUTES: [string, string][] = [
   ["GET", "/api/routines"],
   ["POST", "/api/routines"],
   ["PUT", "/api/routines/1"],
+  ["PATCH", "/api/routines/1/enabled"],
   ["DELETE", "/api/routines/1"],
   ["POST", "/api/routines/1/run-now"],
   ["GET", "/api/routines/1/runs"],
@@ -320,6 +321,30 @@ describe("com sessao", () => {
     expect((await request("POST", `/api/runs/${run.body.runId}/cancel`, { cookie })).status).toBe(204);
     expect((await request("DELETE", `/api/routines/${id}`, { cookie })).status).toBe(204);
     expect((await request("GET", "/api/routines", { cookie })).body.routines).toHaveLength(0);
+  });
+
+  it("interruptor liga e desliga a rotina sem reenviar o cadastro, ate com a pasta fora do ar", async () => {
+    const cookie = await sessionWithRoot();
+    const id = (await request("POST", "/api/routines", { cookie, body: routineBody() })).body.routine.id as number;
+
+    const off = await request("PATCH", `/api/routines/${id}/enabled`, { cookie, body: { isEnabled: false } });
+    expect(off).toMatchObject({ status: 200, body: { routine: { isEnabled: false, nextRunAt: null } } });
+
+    const on = await request("PATCH", `/api/routines/${id}/enabled`, { cookie, body: { isEnabled: true } });
+    expect(on.status).toBe(200);
+    expect(on.body.routine).toMatchObject({ isEnabled: true });
+    expect(on.body.routine.nextRunAt).not.toBeNull();
+
+    expect((await request("PATCH", `/api/routines/${id}/enabled`, { cookie, body: { isEnabled: "sim" } })).status).toBe(400);
+    expect((await request("PATCH", `/api/routines/${id}/enabled`, { cookie, body: {} })).status).toBe(400);
+    expect((await request("GET", "/api/routines", { cookie })).body.routines[0].isEnabled).toBe(true);
+    expect((await request("PATCH", "/api/routines/9999/enabled", { cookie, body: { isEnabled: false } })).status).toBe(404);
+
+    // Motivo de a rota existir: com a pasta apagada o cadastro nao passa mais na validacao, e pausar precisa continuar.
+    rmSync(path.join(root, "projeto"), { recursive: true, force: true });
+    expect((await request("PUT", `/api/routines/${id}`, { cookie, body: routineBody() })).status).toBe(400);
+    const paused = await request("PATCH", `/api/routines/${id}/enabled`, { cookie, body: { isEnabled: false } });
+    expect(paused).toMatchObject({ status: 200, body: { routine: { isEnabled: false } } });
   });
 
   it.each<[string, Record<string, unknown>]>([

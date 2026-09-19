@@ -24,6 +24,11 @@ commit on `main`.
 - **Search and type filter on the Routines header**: by name (accent and case insensitive) and by
   Claude Code, Codex or Script, and by working folder (shown relative to the root folder, only when
   routines use more than one), with the shown/total count and a Clear filter button.
+- **On/off switch on every routine card**, in the top right corner: pause a routine and bring it
+  back without opening it. Paused, it leaves the schedule (the queued scheduled runs are canceled on
+  the next tick) and "Run now" still works. `PATCH /api/routines/:id/enabled` flips only that flag,
+  and `enable`/`disable` in the CLI now take the same path, so a routine whose working folder went
+  missing can still be paused instead of only deleted.
 - Landing page at [routines.syntaxlab.com.br](https://routines.syntaxlab.com.br) (Portuguese, with
   English at `/en/`); source under `site/`.
 - Banner, screenshots with demo data (`scripts/screenshots.mjs`, `--lang en`), Open Graph images in

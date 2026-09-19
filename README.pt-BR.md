@@ -67,6 +67,9 @@ de suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
   (Gmail com senha de app, ou qualquer servidor SMTP), testada ao salvar, com um selo que diz
   Conectado ou por que falhou. Aviso que não conseguiu sair (internet fora, por exemplo) é
   tentado de novo por até 24 h: a queda atrasa o aviso em vez de perdê-lo.
+- **Pausar sem apagar.** Um interruptor no canto do cartão liga e desliga a rotina na hora, e o CLI
+  faz o mesmo com `enable` e `disable`. Pausada, ela sai da agenda e a fila agendada dela é
+  cancelada, mas "Executar agora" continua valendo.
 - **Histórico e log** de cada execução no painel e pelo CLI, com retenção de 30 dias. Com muitas
   rotinas, o cabeçalho tem busca pelo nome e filtros por tipo e por pasta.
 - **Português ou inglês.** Um seletor discreto na tela de login e no pé da barra lateral troca o

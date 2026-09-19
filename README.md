@@ -71,6 +71,9 @@ no support channel with a deadline; see [SUPPORT.md](SUPPORT.md).
   dialog (Gmail with an app password, or any SMTP server), tested on save, with a badge that says
   Connected or why it failed. An alert that cannot be sent (the internet is down, say) is retried
   for up to 24 h, so an outage delays it instead of losing it.
+- **Pause without deleting.** A switch in the corner of the card turns a routine off and on right
+  away, and the CLI does the same with `enable` and `disable`. Paused, it leaves the schedule and its
+  queued scheduled runs are canceled, but "Run now" still works.
 - **History and log** for every run, in the panel and through the CLI, kept for 30 days. With many
   routines, the header has a search by name and filters by type and by folder.
 - **English or Portuguese.** A discreet selector on the sign-in screen and at the bottom of the
