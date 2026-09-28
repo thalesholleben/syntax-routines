@@ -47,6 +47,12 @@ commit on `main`.
 
 ### Fixed
 
+- **A failure alert is never delivered twice.** When the whole message had gone out and the SMTP
+  server's final reply was lost (timeout, dropped connection), the alert went back to the retry queue
+  and could arrive again. Now only failures proven to happen before the message was sent (connection,
+  DNS, TLS, login, 4xx/5xx refusal) are retried; an uncertain delivery is kept out of the queue and the
+  run note says the alert may have arrived. Schema v3 adds `runs.notify_uncertain_at`. The alert log no
+  longer shows the full recipient address.
 - **Timeout and cancel now kill the whole tree on macOS and Linux.** The child runs in its own process
   group and the signal goes to the group: before, only the shell died and the command it had started
   (or the agent's subprocess) kept running.

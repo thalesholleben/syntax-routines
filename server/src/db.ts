@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 
 export type Db = DatabaseSync;
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 const SCHEMA_VERSION_KEY = "schema_version";
 
 // Colunas em snake_case; toda leitura sai com alias camelCase (`AS "campo"`).
@@ -46,6 +46,7 @@ const RUNS_COLUMNS = `
   note TEXT,
   notified_at INTEGER,
   notify_attempts INTEGER NOT NULL DEFAULT 0,
+  notify_uncertain_at INTEGER,
   created_at INTEGER NOT NULL`;
 
 // Uma linha por ocorrencia agendada: replay da mesma janela (crash, relogio voltando) vira no-op. O indice pela
@@ -133,6 +134,32 @@ function migrateV1ToV2(db: Db): void {
   }
 }
 
+/**
+ * v2 -> v3: runs ganha `notify_uncertain_at`, o aviso de falha cuja entrega ficou incerta (a mensagem saiu inteira e o
+ * servidor nao confirmou): ele nao e reenviado, para nao chegar em dobro. So acrescenta coluna, sem recriar tabela, mas
+ * segue o mesmo roteiro da v2 (pragma fora da transacao, conferencia antes do COMMIT). Quem vem da v1 ja tem a coluna,
+ * porque a v2 recria runs com as colunas atuais: ai so a versao muda.
+ */
+function migrateV2ToV3(db: Db): void {
+  db.exec("PRAGMA foreign_keys = OFF");
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const columns = (db.prepare("PRAGMA table_info(runs)").all() as { name: string }[]).map((column) => column.name);
+      if (!columns.includes("notify_uncertain_at")) db.exec("ALTER TABLE runs ADD COLUMN notify_uncertain_at INTEGER");
+      const violations = db.prepare("PRAGMA foreign_key_check").all();
+      if (violations.length > 0) throw new Error(`migração v3: ${violations.length} referência(s) quebrada(s) em runs.routine_id`);
+      writeSchemaVersion(db, 3);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    db.exec("PRAGMA foreign_keys = ON");
+  }
+}
+
 /** Abre (ou cria) o banco. Idempotente: nao altera linhas existentes; migra o schema quando ele e de uma versao anterior. */
 export function openDb(file: string): Db {
   if (file !== ":memory:") mkdirSync(path.dirname(file), { recursive: true });
@@ -145,8 +172,9 @@ export function openDb(file: string): Db {
     db.exec(SCHEMA);
     if (isNew) {
       writeSchemaVersion(db, SCHEMA_VERSION);
-    } else if (readSchemaVersion(db) < 2) {
-      migrateV1ToV2(db);
+    } else {
+      if (readSchemaVersion(db) < 2) migrateV1ToV2(db);
+      if (readSchemaVersion(db) < 3) migrateV2ToV3(db);
     }
   } catch (error) {
     // Sem fechar, o arquivo fica preso ate o processo morrer (no Windows nem apagar da).

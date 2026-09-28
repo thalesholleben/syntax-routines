@@ -142,7 +142,8 @@ const pt = {
   mailTestLine2: "Quando uma rotina falhar, o aviso chega neste endereço.",
   mailInternalBadge: "Aviso interno",
   mailTagline: "Software sob medida",
-  mailFooter: "Aviso automático do Syntax Routines instalado neste computador."
+  mailFooter: "Aviso automático do Syntax Routines instalado neste computador.",
+  noteNotifyUncertain: "Aviso por e-mail com entrega incerta: a mensagem saiu inteira e o servidor não confirmou. Pode ter chegado; não será reenviado."
 };
 
 export type Messages = typeof pt;
@@ -255,7 +256,8 @@ const en: Messages = {
   mailTestLine2: "When a routine fails, the alert arrives at this address.",
   mailInternalBadge: "Internal notice",
   mailTagline: "Custom software",
-  mailFooter: "Automatic notice from the Syntax Routines installed on this computer."
+  mailFooter: "Automatic notice from the Syntax Routines installed on this computer.",
+  noteNotifyUncertain: "E-mail alert with uncertain delivery: the whole message went out and the server did not confirm. It may have arrived; it will not be sent again."
 };
 
 const MESSAGES: Record<Language, Messages> = { pt, en };

@@ -1,4 +1,5 @@
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
@@ -10,6 +11,7 @@ import {
   classifySmtpError,
   createMailer,
   describeMail,
+  isDeliveryUncertain,
   isLoopbackHost,
   MailError,
   nodemailerTransport,
@@ -134,6 +136,110 @@ describe("classifySmtpError e transporte", () => {
     expect(requireTls(base)).toBe(true);
     expect(requireTls({ ...base, host: "127.0.0.1" })).toBe(false);
     expect(requireTls({ ...base, port: 465, isSecure: true })).toBe(false);
+  });
+});
+
+/**
+ * SMTP de verdade no loopback que erra de proposito numa fase: fecha a conexao ao receber o RCPT (antes da mensagem),
+ * fecha logo depois do ponto final do DATA sem responder (a confirmacao se perdeu) ou recusa a mensagem com 550.
+ */
+const CRLF = "\r\n";
+
+async function misbehavingSmtp(mode: "dropOnRcpt" | "dropAfterData" | "rejectAfterData") {
+  const received: string[] = [];
+  const server = net.createServer((socket) => {
+    socket.setEncoding("utf8");
+    socket.on("error", () => undefined);
+    let buffer = "";
+    let isData = false;
+    const reply = (line: string) => socket.write(`${line}${CRLF}`);
+    reply("220 teste ESMTP");
+    socket.on("data", (chunk: string) => {
+      buffer += chunk;
+      for (;;) {
+        if (isData) {
+          const end = buffer.indexOf(`${CRLF}.${CRLF}`);
+          if (end === -1) return;
+          received.push(buffer.slice(0, end));
+          buffer = buffer.slice(end + 5);
+          isData = false;
+          if (mode === "dropAfterData") socket.destroy();
+          else reply("550 5.7.1 mensagem recusada");
+          return;
+        }
+        const newline = buffer.indexOf(CRLF);
+        if (newline === -1) return;
+        const verb = buffer.slice(0, newline).split(" ")[0].toUpperCase();
+        buffer = buffer.slice(newline + 2);
+        if (verb === "EHLO") reply(`250-teste${CRLF}250 AUTH PLAIN`);
+        else if (verb === "AUTH") reply("235 2.7.0 ok");
+        else if (verb === "MAIL") reply("250 2.1.0 ok");
+        else if (verb === "RCPT") {
+          if (mode === "dropOnRcpt") return void socket.destroy();
+          reply("250 2.1.5 ok");
+        } else if (verb === "DATA") {
+          isData = true;
+          reply("354 manda");
+        } else if (verb === "QUIT") reply("221 tchau");
+        else reply("250 ok");
+      }
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as net.AddressInfo;
+  return { port, received, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
+}
+
+function loopbackEnv(port: number) {
+  return { SMTP_HOST: "127.0.0.1", SMTP_PORT: String(port), SMTP_USER: "avisos@example.com", SMTP_PASS: "senha", MAIL_FROM_EMAIL: "avisos@example.com" };
+}
+
+async function sendError(port: number): Promise<MailError> {
+  const mailer = createMailer({ db, env: loopbackEnv(port) });
+  const error = await mailer.send(message).catch((caught: unknown) => caught);
+  expect(error).toBeInstanceOf(MailError);
+  return error as MailError;
+}
+
+describe("entrega incerta: a mensagem saiu inteira e o servidor nao confirmou", () => {
+  it("so a marca de mensagem enviada sem recusa 4xx/5xx conta como incerta", () => {
+    expect(isDeliveryUncertain(smtpError("Connection closed unexpectedly", { code: "ECONNECTION", command: "CONN", isMessageSent: true }))).toBe(true);
+    expect(isDeliveryUncertain(smtpError("Timeout", { code: "ETIMEDOUT", command: "CONN", isMessageSent: true }))).toBe(true);
+    expect(isDeliveryUncertain(smtpError("Message failed: 550", { code: "EMESSAGE", command: "DATA", responseCode: 550, isMessageSent: true }))).toBe(false);
+    expect(isDeliveryUncertain(smtpError("Message failed: 451", { code: "EMESSAGE", command: "DATA", responseCode: 451, isMessageSent: true }))).toBe(false);
+    // O mesmo ETIMEDOUT/CONN antes da mensagem sair (sem internet, servidor calado) continua podendo tentar de novo.
+    expect(isDeliveryUncertain(smtpError("Timeout", { code: "ETIMEDOUT", command: "CONN" }))).toBe(false);
+    expect(isDeliveryUncertain(new Error("qualquer"))).toBe(false);
+  });
+
+  it("conexao que cai depois do ponto final do DATA vira MailError incerto", async () => {
+    const smtp = await misbehavingSmtp("dropAfterData");
+    try {
+      const error = await sendError(smtp.port);
+      expect(smtp.received).toHaveLength(1);
+      expect(error.isDeliveryUncertain).toBe(true);
+    } finally {
+      await smtp.close();
+    }
+  });
+
+  it("recusa 550 depois do DATA, queda antes da mensagem e porta fechada nao sao incertas", async () => {
+    const rejecting = await misbehavingSmtp("rejectAfterData");
+    const dropping = await misbehavingSmtp("dropOnRcpt");
+    try {
+      const rejected = await sendError(rejecting.port);
+      expect(rejecting.received).toHaveLength(1);
+      expect(rejected).toMatchObject({ reason: "rejected", isDeliveryUncertain: false });
+      const dropped = await sendError(dropping.port);
+      expect(dropping.received).toHaveLength(0);
+      expect(dropped.isDeliveryUncertain).toBe(false);
+    } finally {
+      await rejecting.close();
+      await dropping.close();
+    }
+    const closed = await misbehavingSmtp("dropOnRcpt");
+    await closed.close();
+    expect(await sendError(closed.port)).toMatchObject({ reason: "connection", isDeliveryUncertain: false });
   });
 });
 

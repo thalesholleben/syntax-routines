@@ -3,6 +3,7 @@
 // e o agendador (destinatario em Ajustes). Aqui se envia, se testa a conexao antes de gravar uma conta e se guarda o
 // resultado do ultimo envio, que e o selo "Conectado" ou "Falhou" da tela de Ajustes.
 import nodemailer from "nodemailer";
+import type { Logger as SmtpLogger } from "nodemailer/lib/shared";
 
 import type { Db } from "./db";
 import { DEFAULT_LANGUAGE, messages, type Language, type Messages, type TextKey } from "./i18n";
@@ -113,15 +114,21 @@ function failureText(m: Messages, reason: MailFailure, detail: string): string {
   return detail ? m.mailFailDetail(text, detail) : text;
 }
 
-/** Falha de envio que sabe se traduzir: `message` em portugues (log e CLI), `localized(lang)` para a API. */
+/**
+ * Falha de envio que sabe se traduzir: `message` em portugues (log e CLI), `localized(lang)` para a API.
+ * `isDeliveryUncertain`: a mensagem saiu inteira e o servidor nao confirmou nem recusou, entao ela pode ter chegado.
+ * Quem reenvia sozinho (o aviso de falha do agendador) nao pode repetir esse caso, ou o aviso chega em dobro.
+ */
 export class MailError extends Error {
   readonly reason: MailFailure;
   readonly detail: string;
+  readonly isDeliveryUncertain: boolean;
 
-  constructor(reason: MailFailure, detail = "") {
+  constructor(reason: MailFailure, detail = "", isDeliveryUncertain = false) {
     super(failureText(messages(DEFAULT_LANGUAGE), reason, detail));
     this.reason = reason;
     this.detail = detail;
+    this.isDeliveryUncertain = isDeliveryUncertain;
   }
 
   localized(language: Language): string {
@@ -181,13 +188,44 @@ export function classifySmtpError(error: unknown): MailFailure {
   return "other";
 }
 
+/**
+ * A entrega ficou incerta? So quando a mensagem inteira ja tinha saido (marca `isMessageSent`, posta pelo
+ * `nodemailerTransport`) e o servidor nao respondeu com recusa (4xx/5xx em `responseCode`). O `code` e o `command` do
+ * nodemailer nao bastam: queda e timeout de socket chegam como ETIMEDOUT/ESOCKET/ECONNECTION com command "CONN" tanto
+ * antes de conectar quanto esperando o "250" depois do DATA. Antes do fim da mensagem o servidor nao aceitou nada.
+ */
+export function isDeliveryUncertain(error: unknown): boolean {
+  const { isMessageSent, responseCode } = (typeof error === "object" && error !== null ? error : {}) as { isMessageSent?: unknown; responseCode?: unknown };
+  const isRejected = typeof responseCode === "number" && responseCode >= 400;
+  return isMessageSent === true && !isRejected;
+}
+
 /** Relay no proprio PC (127.0.0.1, localhost) nao exige STARTTLS: o trafego nao sai da maquina. */
 export function isLoopbackHost(host: string): boolean {
   return /^(localhost|127(?:\.\d{1,3}){3}|::1|\[::1\])$/i.test(host.trim());
 }
 
-export const nodemailerTransport: TransportFactory = (config) =>
-  nodemailer.createTransport({
+/**
+ * Logger do nodemailer que so escuta uma coisa: o registro "message" do nivel info, que ele grava quando a mensagem
+ * inteira (com o ponto final do DATA) ja foi entregue ao socket. E o unico sinal publico dessa fase.
+ */
+function messageSentLogger(onMessageSent: () => void): SmtpLogger {
+  const ignore = () => undefined;
+  return {
+    level: ignore,
+    trace: ignore,
+    debug: ignore,
+    info: (entry: unknown) => {
+      if (typeof entry === "object" && entry !== null && (entry as { tnx?: unknown }).tnx === "message") onMessageSent();
+    },
+    warn: ignore,
+    error: ignore,
+    fatal: ignore
+  };
+}
+
+export const nodemailerTransport: TransportFactory = (config) => {
+  const options = {
     host: config.host,
     port: config.port,
     secure: config.isSecure,
@@ -196,7 +234,26 @@ export const nodemailerTransport: TransportFactory = (config) =>
     connectionTimeout: 20_000,
     greetingTimeout: 20_000,
     socketTimeout: 30_000
-  });
+  };
+  // `options` fica exposto so para leitura (o teste confere o requireTLS); um transporte novo a cada envio, para a
+  // marca de fase ser daquele envio.
+  const transport = {
+    options,
+    async sendMail(mail: Parameters<MailTransport["sendMail"]>[0]) {
+      let isMessageSent = false;
+      const smtp = nodemailer.createTransport({ ...options, logger: messageSentLogger(() => (isMessageSent = true)) });
+      try {
+        return await smtp.sendMail(mail);
+      } catch (error) {
+        // Marca a fase no proprio erro: `isDeliveryUncertain` le daqui.
+        if (isMessageSent && typeof error === "object" && error !== null) Object.assign(error, { isMessageSent: true });
+        throw error;
+      }
+    },
+    verify: () => nodemailer.createTransport(options).verify()
+  };
+  return transport;
+};
 
 type Account = { source: "panel"; config: Omit<SmtpConfig, "pass">; passBlob: string } | { source: "env"; config: SmtpConfig };
 
@@ -330,7 +387,9 @@ export function createMailer({ db, env = process.env, secrets = defaultSecretSto
   }
 
   function toMailError(error: unknown, config: SmtpConfig): MailError {
-    return error instanceof MailError ? error : new MailError(classifySmtpError(error), sanitizeSmtpError(error, [config.pass, config.user]));
+    return error instanceof MailError
+      ? error
+      : new MailError(classifySmtpError(error), sanitizeSmtpError(error, [config.pass, config.user]), isDeliveryUncertain(error));
   }
 
   return {

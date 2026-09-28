@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -6,7 +6,8 @@ import { DatabaseSync } from "node:sqlite";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { openDb, type Db } from "./db";
-import type { Mailer, MailMessage } from "./mailer";
+import { setLogFile } from "./log";
+import { MailError, type Mailer, type MailMessage } from "./mailer";
 import { purgeOldRuns, RETENTION_DAYS } from "./retention";
 import { ConflictError, createRoutine, updateRoutine, type RoutineInput } from "./routines";
 import type { AgentRunInput, AgentRunOutcome, RunAgent, RunScript, ScriptRunInput } from "./runner";
@@ -76,16 +77,26 @@ function createFakeRunner() {
   return { calls, scriptCalls, runAgent, runScript };
 }
 
-/** Mailer falso: guarda o que enviaria e falha quando o teste manda. */
+/**
+ * Mailer falso: guarda o que enviaria e falha quando o teste manda. `failNext` e a recusa comprovada (MailError, como o
+ * mailer real lanca); `outcomes` roteia chamada a chamada: "lostAck" entrega e depois lanca (a confirmacao do SMTP se
+ * perdeu), um erro e lancado sem entregar.
+ */
 function createFakeMailer(isConfigured = true) {
   const sent: MailMessage[] = [];
-  const state = { failNext: 0 };
+  const state = { failNext: 0, outcomes: [] as ("lostAck" | Error)[] };
   const mailer: Mailer = {
     isConfigured,
     async send(message) {
+      const outcome = state.outcomes.shift();
+      if (outcome === "lostAck") {
+        sent.push(message);
+        throw new Error("SMTP accepted DATA; ACK lost");
+      }
+      if (outcome) throw outcome;
       if (state.failNext > 0) {
         state.failNext -= 1;
-        throw new Error("SMTP recusou o envio: 535 auth failed");
+        throw new MailError("auth", "535 auth failed");
       }
       sent.push(message);
     }
@@ -732,6 +743,77 @@ describe("aviso por e-mail", () => {
     clock = at(14, 10) + 289 * MIN;
     expect(await scheduler.notifyFailures()).toBe(0);
     expect(fake.sent).toHaveLength(1);
+  });
+
+  function uncertainState(runId: number) {
+    return db.prepare(`SELECT notified_at AS "notifiedAt", notify_uncertain_at AS "uncertainAt", note FROM runs WHERE id = ?`).get(runId);
+  }
+
+  it("confirmacao do SMTP perdida depois da entrega: uma entrega so, marcada como incerta e anotada na execucao", async () => {
+    const id = createRoutine(db, scriptInput(), at(1, 0));
+    writeSettings(db, { notifyEmail: "dono@example.com" });
+    const fake = createFakeMailer();
+    const { scheduler } = newScheduler(db, { mailer: fake.mailer });
+    clock = at(14, 10);
+    const runId = failedRun(id, at(14, 10));
+
+    fake.state.outcomes = ["lostAck"];
+    expect(await scheduler.notifyFailures()).toBe(0);
+    expect(fake.sent).toHaveLength(1);
+    expect(uncertainState(runId)).toMatchObject({ notifiedAt: null, uncertainAt: at(14, 10) });
+    expect(notifyState(runId)).toMatchObject({ notifyAttempts: 0 });
+    expect((uncertainState(runId) as { note: string }).note).toContain("entrega incerta");
+
+    // Nenhuma passada seguinte reenvia, nem com o SMTP respondendo normal, ate o fim da janela de 24 h.
+    for (const minutes of [1, 4, 60, 24 * 60 - 1]) {
+      clock = at(14, 10) + minutes * MIN;
+      expect(await scheduler.notifyFailures()).toBe(0);
+    }
+    expect(fake.sent).toHaveLength(1);
+  });
+
+  it("timeout esperando o 250 nao reenvia; recusa antes da mensagem sair continua voltando para a fila", async () => {
+    const id = createRoutine(db, scriptInput(), at(1, 0));
+    writeSettings(db, { notifyEmail: "dono@example.com" });
+    const fake = createFakeMailer();
+    const { scheduler } = newScheduler(db, { mailer: fake.mailer });
+    clock = at(14, 10);
+    const uncertainRun = failedRun(id, at(14, 9));
+    const refusedRun = failedRun(id, at(14, 9, 30));
+
+    fake.state.outcomes = [new MailError("connection", "Timeout", true), new MailError("connection", "connect ECONNREFUSED 127.0.0.1:587")];
+    expect(await scheduler.notifyFailures()).toBe(0);
+    expect(uncertainState(uncertainRun)).toMatchObject({ uncertainAt: at(14, 10) });
+    expect(uncertainState(refusedRun)).toMatchObject({ uncertainAt: null });
+    expect(notifyState(refusedRun)).toMatchObject({ notifyAttempts: 1 });
+
+    clock = at(14, 11);
+    expect(await scheduler.notifyFailures()).toBe(1);
+    expect(fake.sent).toHaveLength(1);
+    expect(notifyState(refusedRun)).toMatchObject({ notifiedAt: at(14, 11) });
+    expect(notifyState(uncertainRun)).toMatchObject({ notifiedAt: null, notifyAttempts: 0 });
+  });
+
+  it("o log do aviso nao traz o endereco completo de quem recebe", async () => {
+    const logFile = path.join(tmp, "app.log");
+    setLogFile(logFile);
+    try {
+      const id = createRoutine(db, scriptInput(), at(1, 0));
+      writeSettings(db, { notifyEmail: "dono@example.com" });
+      const fake = createFakeMailer();
+      const { scheduler } = newScheduler(db, { mailer: fake.mailer });
+      clock = at(14, 10);
+      failedRun(id, at(14, 9));
+      failedRun(id, at(14, 9, 30));
+      fake.state.outcomes = [new MailError("rejected", "550 5.1.1 <dono@example.com>: Recipient address rejected")];
+      await scheduler.notifyFailures();
+      const text = readFileSync(logFile, "utf8");
+      expect(text).toContain("enviado para d***@example.com");
+      expect(text).toContain("<d***@example.com>");
+      expect(text).not.toContain("dono@example.com");
+    } finally {
+      setLogFile(null);
+    }
   });
 
   it("o tick avisa a falha que o proprio tick produziu (diretorio fora da pasta mae)", async () => {

@@ -5,8 +5,8 @@ import { transaction, type Db } from "./db";
 import { checkDirectory } from "./directories";
 import { LOCALE, messages, type Language } from "./i18n";
 import { LimitTracker } from "./limit-tracker";
-import { log } from "./log";
-import type { Mailer } from "./mailer";
+import { log, maskEmails } from "./log";
+import { MailError, type Mailer } from "./mailer";
 import { buildFailureEmail } from "./notifier";
 import { purgeOldRuns } from "./retention";
 import { decideRetry } from "./retry-policy";
@@ -350,7 +350,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
       const pending = db
         .prepare(
           `SELECT id FROM runs
-          WHERE status = 'FAILED' AND notified_at IS NULL AND notify_attempts < :maxAttempts
+          WHERE status = 'FAILED' AND notified_at IS NULL AND notify_uncertain_at IS NULL AND notify_attempts < :maxAttempts
             AND finished_at IS NOT NULL AND finished_at >= :since
             AND finished_at + notify_attempts * notify_attempts * 60000 <= :now
           ORDER BY finished_at, id`
@@ -365,10 +365,23 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
           await mailer.send({ to: notifyEmail, ...buildFailureEmail({ run, routine, panelUrl, language }) });
           db.prepare("UPDATE runs SET notified_at = :now WHERE id = :id").run({ now: now(), id });
           sent += 1;
-          log(`aviso de falha da execução ${id} (${routine.name}) enviado para ${notifyEmail}`);
+          log(`aviso de falha da execução ${id} (${routine.name}) enviado para ${maskEmails(notifyEmail)}`);
         } catch (error) {
-          db.prepare("UPDATE runs SET notify_attempts = notify_attempts + 1 WHERE id = :id").run({ id });
-          log(`aviso de falha da execução ${id} não enviado: ${error instanceof Error ? error.message : String(error)}`);
+          const detail = maskEmails(error instanceof Error ? error.message : String(error));
+          // So volta para a fila o que comprovadamente nao saiu (MailError sem entrega incerta: conexao, DNS, TLS,
+          // login, recusa 4xx/5xx). Mensagem que saiu inteira sem confirmacao, ou erro fora do contrato do Mailer,
+          // pode ter chegado: reenviar arrisca o aviso em dobro, entao fica marcada e a nota da execucao avisa.
+          if (error instanceof MailError && !error.isDeliveryUncertain) {
+            db.prepare("UPDATE runs SET notify_attempts = notify_attempts + 1 WHERE id = :id").run({ id });
+            log(`aviso de falha da execução ${id} não enviado: ${detail}`);
+          } else {
+            db.prepare(`UPDATE runs SET notify_uncertain_at = :at, note = ${APPEND_NOTE} WHERE id = :id`).run({
+              at: now(),
+              note: messages(language).noteNotifyUncertain,
+              id
+            });
+            log(`aviso de falha da execução ${id} com entrega incerta, pode ter chegado e não será reenviado: ${detail}`);
+          }
         }
       }
     } finally {

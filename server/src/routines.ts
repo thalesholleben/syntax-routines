@@ -68,6 +68,8 @@ export interface RunRow {
   note: string | null;
   notifiedAt: number | null;
   notifyAttempts: number;
+  /** Aviso de falha com entrega incerta (saiu inteiro, sem confirmacao): nao e reenviado. */
+  notifyUncertainAt: number | null;
   createdAt: number;
 }
 
@@ -89,7 +91,7 @@ export const ROUTINE_COLUMNS = `id, name, agent_kind AS "agentKind", directory, 
 export const RUN_COLUMNS = `id, routine_id AS "routineId", trigger_type AS "triggerType", scheduled_for AS "scheduledFor",
   run_at AS "runAt", status, force_agent AS "forceAgent", agent_kind AS "agentKind", attempt, started_at AS "startedAt",
   finished_at AS "finishedAt", exit_code AS "exitCode", result, error, note, notified_at AS "notifiedAt",
-  notify_attempts AS "notifyAttempts", created_at AS "createdAt"`;
+  notify_attempts AS "notifyAttempts", notify_uncertain_at AS "notifyUncertainAt", created_at AS "createdAt"`;
 
 function toParams(input: RoutineInput, nowMs: number) {
   return {
