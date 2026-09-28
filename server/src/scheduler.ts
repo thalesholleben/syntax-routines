@@ -339,8 +339,27 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
    * Passe de aviso: toda FAILED recente ainda nao avisada vira um e-mail. Fica fora do finishRun de proposito, para
    * cobrir tambem a falha de diretorio no despacho e a interrupcao recuperada na subida, e para ter retry pelo tick.
    */
+  /**
+   * Reserva de aviso deixada por um processo que morreu no meio do envio (o SMTP pode ter aceitado a mensagem antes
+   * de o banco gravar o resultado): vira entrega incerta e nunca e reenviada. So roda fora de um passe de aviso, e
+   * a instancia e unica (invariante 7), entao nenhuma reserva encontrada aqui esta em andamento.
+   */
+  function settleInterruptedNotifications(): number {
+    const result = db
+      .prepare(
+        `UPDATE runs SET notify_uncertain_at = notify_sending_at, notify_sending_at = NULL, note = ${APPEND_NOTE}
+        WHERE notify_sending_at IS NOT NULL AND notified_at IS NULL AND notify_uncertain_at IS NULL`
+      )
+      .run({ note: messages(readSettings(db).language).noteNotifyUncertain });
+    db.prepare("UPDATE runs SET notify_sending_at = NULL WHERE notify_sending_at IS NOT NULL").run();
+    const count = Number(result.changes);
+    if (count > 0) log(`${count} aviso(s) de falha interrompido(s) no meio do envio: entrega incerta, não será(ão) reenviado(s)`);
+    return count;
+  }
+
   async function notifyFailures(): Promise<number> {
     if (isNotifying || isStopped) return 0;
+    settleInterruptedNotifications();
     const { notifyEmail, language } = readSettings(db);
     if (!mailer || !mailer.isConfigured || !notifyEmail) return 0;
     isNotifying = true;
@@ -350,7 +369,8 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
       const pending = db
         .prepare(
           `SELECT id FROM runs
-          WHERE status = 'FAILED' AND notified_at IS NULL AND notify_uncertain_at IS NULL AND notify_attempts < :maxAttempts
+          WHERE status = 'FAILED' AND notified_at IS NULL AND notify_uncertain_at IS NULL AND notify_sending_at IS NULL
+            AND notify_attempts < :maxAttempts
             AND finished_at IS NOT NULL AND finished_at >= :since
             AND finished_at + notify_attempts * notify_attempts * 60000 <= :now
           ORDER BY finished_at, id`
@@ -361,9 +381,18 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
         const run = getRun(db, id);
         const routine = run ? getRoutine(db, run.routineId) : undefined;
         if (!run || !routine) continue;
+        // Reserva gravada ANTES do envio, com UPDATE condicional: so um passe vence, e se o processo morrer depois de
+        // o SMTP aceitar, a reserva que sobra vira entrega incerta na proxima subida em vez de um segundo envio.
+        const reserved = db
+          .prepare(
+            `UPDATE runs SET notify_sending_at = :now
+            WHERE id = :id AND notified_at IS NULL AND notify_uncertain_at IS NULL AND notify_sending_at IS NULL`
+          )
+          .run({ now: now(), id });
+        if (Number(reserved.changes) === 0) continue;
         try {
           await mailer.send({ to: notifyEmail, ...buildFailureEmail({ run, routine, panelUrl, language }) });
-          db.prepare("UPDATE runs SET notified_at = :now WHERE id = :id").run({ now: now(), id });
+          db.prepare("UPDATE runs SET notified_at = :now, notify_sending_at = NULL WHERE id = :id").run({ now: now(), id });
           sent += 1;
           log(`aviso de falha da execução ${id} (${routine.name}) enviado para ${maskEmails(notifyEmail)}`);
         } catch (error) {
@@ -372,10 +401,10 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
           // login, recusa 4xx/5xx). Mensagem que saiu inteira sem confirmacao, ou erro fora do contrato do Mailer,
           // pode ter chegado: reenviar arrisca o aviso em dobro, entao fica marcada e a nota da execucao avisa.
           if (error instanceof MailError && !error.isDeliveryUncertain) {
-            db.prepare("UPDATE runs SET notify_attempts = notify_attempts + 1 WHERE id = :id").run({ id });
+            db.prepare("UPDATE runs SET notify_attempts = notify_attempts + 1, notify_sending_at = NULL WHERE id = :id").run({ id });
             log(`aviso de falha da execução ${id} não enviado: ${detail}`);
           } else {
-            db.prepare(`UPDATE runs SET notify_uncertain_at = :at, note = ${APPEND_NOTE} WHERE id = :id`).run({
+            db.prepare(`UPDATE runs SET notify_uncertain_at = :at, notify_sending_at = NULL, note = ${APPEND_NOTE} WHERE id = :id`).run({
               at: now(),
               note: messages(language).noteNotifyUncertain,
               id
@@ -418,6 +447,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
         WHERE status = 'RUNNING'`
       )
       .run({ now: now(), error: messages(readSettings(db).language).errorInterrupted });
+    settleInterruptedNotifications();
     return Number(result.changes);
   }
 

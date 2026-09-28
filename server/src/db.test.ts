@@ -191,7 +191,8 @@ describe("openDb", () => {
       created_at: 999,
       notified_at: null,
       notify_attempts: 0,
-      notify_uncertain_at: null
+      notify_uncertain_at: null,
+      notify_sending_at: null
     });
 
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
@@ -241,7 +242,7 @@ describe("openDb", () => {
 
     const db = openDb(file);
     expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "3" });
-    expect(db.prepare("SELECT * FROM runs").get()).toMatchObject({ id: 9, routine_id: 3, error: "erro", notified_at: null, notify_attempts: 4, notify_uncertain_at: null });
+    expect(db.prepare("SELECT * FROM runs").get()).toMatchObject({ id: 9, routine_id: 3, error: "erro", notified_at: null, notify_attempts: 4, notify_uncertain_at: null, notify_sending_at: null });
     expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
     const indexes = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'runs'").all() as { name: string }[]).map(
       (index) => index.name

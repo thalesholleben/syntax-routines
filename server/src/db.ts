@@ -47,6 +47,7 @@ const RUNS_COLUMNS = `
   notified_at INTEGER,
   notify_attempts INTEGER NOT NULL DEFAULT 0,
   notify_uncertain_at INTEGER,
+  notify_sending_at INTEGER,
   created_at INTEGER NOT NULL`;
 
 // Uma linha por ocorrencia agendada: replay da mesma janela (crash, relogio voltando) vira no-op. O indice pela
@@ -135,10 +136,11 @@ function migrateV1ToV2(db: Db): void {
 }
 
 /**
- * v2 -> v3: runs ganha `notify_uncertain_at`, o aviso de falha cuja entrega ficou incerta (a mensagem saiu inteira e o
- * servidor nao confirmou): ele nao e reenviado, para nao chegar em dobro. So acrescenta coluna, sem recriar tabela, mas
- * segue o mesmo roteiro da v2 (pragma fora da transacao, conferencia antes do COMMIT). Quem vem da v1 ja tem a coluna,
- * porque a v2 recria runs com as colunas atuais: ai so a versao muda.
+ * v2 -> v3: runs ganha as duas colunas que impedem o aviso de falha em dobro. `notify_sending_at` e a reserva gravada
+ * antes do envio (sobrou de um processo morto, vira incerta); `notify_uncertain_at` marca o aviso cuja entrega ficou
+ * incerta (a mensagem saiu inteira e o servidor nao confirmou, ou o processo caiu no meio), que nao e reenviado. So
+ * acrescenta colunas, sem recriar tabela, mas segue o mesmo roteiro da v2 (pragma fora da transacao, conferencia
+ * antes do COMMIT). Quem vem da v1 ja tem as colunas, porque a v2 recria runs com as colunas atuais.
  */
 function migrateV2ToV3(db: Db): void {
   db.exec("PRAGMA foreign_keys = OFF");
@@ -146,7 +148,9 @@ function migrateV2ToV3(db: Db): void {
     db.exec("BEGIN IMMEDIATE");
     try {
       const columns = (db.prepare("PRAGMA table_info(runs)").all() as { name: string }[]).map((column) => column.name);
-      if (!columns.includes("notify_uncertain_at")) db.exec("ALTER TABLE runs ADD COLUMN notify_uncertain_at INTEGER");
+      for (const column of ["notify_uncertain_at", "notify_sending_at"]) {
+        if (!columns.includes(column)) db.exec(`ALTER TABLE runs ADD COLUMN ${column} INTEGER`);
+      }
       const violations = db.prepare("PRAGMA foreign_key_check").all();
       if (violations.length > 0) throw new Error(`migração v3: ${violations.length} referência(s) quebrada(s) em runs.routine_id`);
       writeSchemaVersion(db, 3);

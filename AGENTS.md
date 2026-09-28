@@ -68,7 +68,10 @@ None of these commands touches `data/`, calls the real Claude or Codex, or sends
     `isDeliveryUncertain`: connection, DNS, TLS, login, 4xx/5xx refusal). When the whole message was sent
     and no final reply came (`isDeliveryUncertain` in `server/src/mailer.ts`, marked by the transport),
     or `send` throws anything outside that contract, the run gets `notify_uncertain_at` and a note saying
-    the alert may have arrived, and it is never sent again: a retry there would deliver it twice. The
+    the alert may have arrived, and it is never sent again: a retry there would deliver it twice. Before
+    sending, a conditional `UPDATE` reserves the run (`notify_sending_at`); success or a proven failure clears
+    it, and a reservation left by a process that died mid-send becomes `notify_uncertain_at` on boot
+    (`recoverOnBoot`) and at the start of every notify pass (`settleInterruptedNotifications`). The
     notify log masks e-mail addresses (`maskEmails` in `server/src/log.ts`). The sending account comes from Settings
     (`PUT /api/settings/mail`, tested with `verify()` before anything is written) or, without one, from
     `.env` (`process.loadEnvFile` in `index.ts`). The SMTP password saved from the panel exists only

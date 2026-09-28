@@ -1,6 +1,8 @@
+import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -792,6 +794,101 @@ describe("aviso por e-mail", () => {
     expect(fake.sent).toHaveLength(1);
     expect(notifyState(refusedRun)).toMatchObject({ notifiedAt: at(14, 11) });
     expect(notifyState(uncertainRun)).toMatchObject({ notifiedAt: null, notifyAttempts: 0 });
+  });
+
+  /**
+   * Outro processo Node com o mesmo banco: o mailer registra a entrega num arquivo e mata o processo na hora, antes de
+   * o agendador gravar qualquer resultado (o SMTP aceitou, o app caiu). Devolve quantas entregas o arquivo registrou.
+   */
+  function crashAfterDelivery(nowMs: number): number {
+    const deliveries = path.join(tmp, "entregas.txt");
+    const url = (file: string) => pathToFileURL(path.join(process.cwd(), "server", "src", file)).href;
+    const code = `
+      import { appendFileSync } from "node:fs";
+      import { openDb } from ${JSON.stringify(url("db.ts"))};
+      import { createScheduler } from ${JSON.stringify(url("scheduler.ts"))};
+      const db = openDb(${JSON.stringify(dbFile)});
+      const mailer = { isConfigured: true, async send() { appendFileSync(${JSON.stringify(deliveries)}, "entregue\\n"); process.exit(0); } };
+      const idle = () => { throw new Error("nao usado"); };
+      const scheduler = createScheduler({ db, runAgent: idle, runScript: idle, logsDir: ${JSON.stringify(path.join(tmp, "logs"))}, now: () => ${nowMs}, mailer });
+      await scheduler.notifyFailures();
+      process.exit(3);
+    `;
+    const child = spawnSync(process.execPath, ["--disable-warning=ExperimentalWarning", "--import", "tsx", "--input-type=module", "-"], {
+      cwd: process.cwd(),
+      input: code,
+      encoding: "utf8",
+      env: { ...process.env, VITEST: "" }
+    });
+    expect(child.status, child.stderr).toBe(0);
+    return readFileSync(deliveries, "utf8").split("\n").filter(Boolean).length;
+  }
+
+  it("processo que morre logo depois da entrega: o reinicio nao reenvia e marca a entrega como incerta", async () => {
+    const id = createRoutine(db, scriptInput(), at(1, 0));
+    writeSettings(db, { notifyEmail: "dono@example.com" });
+    clock = at(14, 10);
+    const runId = failedRun(id, at(14, 10));
+
+    expect(crashAfterDelivery(clock)).toBe(1);
+    // O que o processo morto deixou: so a reserva, gravada antes do envio.
+    expect(db.prepare(`SELECT notified_at AS "notifiedAt", notify_sending_at AS "sendingAt" FROM runs WHERE id = ?`).get(runId)).toEqual({
+      notifiedAt: null,
+      sendingAt: clock
+    });
+
+    // Reinicio com o mesmo banco: a subida converte a reserva orfa e nenhum passe reenvia.
+    const fake = createFakeMailer();
+    const { scheduler } = newScheduler(db, { mailer: fake.mailer });
+    clock = at(14, 11);
+    scheduler.recoverOnBoot();
+    for (const minutes of [1, 4, 60]) {
+      clock = at(14, 10) + minutes * MIN;
+      expect(await scheduler.notifyFailures()).toBe(0);
+    }
+    expect(fake.sent).toHaveLength(0);
+    expect(uncertainState(runId)).toMatchObject({ notifiedAt: null, uncertainAt: at(14, 10) });
+    expect((uncertainState(runId) as { note: string }).note).toContain("entrega incerta");
+    expect(db.prepare(`SELECT notify_sending_at AS "sendingAt", notify_attempts AS "attempts" FROM runs WHERE id = ?`).get(runId)).toEqual({
+      sendingAt: null,
+      attempts: 0
+    });
+  });
+
+  it("reserva orfa tambem e resolvida pelo passe do agendador, sem depender da subida", async () => {
+    const id = createRoutine(db, scriptInput(), at(1, 0));
+    writeSettings(db, { notifyEmail: "dono@example.com" });
+    clock = at(14, 10);
+    const runId = failedRun(id, at(14, 10));
+    expect(crashAfterDelivery(clock)).toBe(1);
+
+    const fake = createFakeMailer();
+    const { scheduler } = newScheduler(db, { mailer: fake.mailer });
+    clock = at(14, 12);
+    expect(await scheduler.notifyFailures()).toBe(0);
+    expect(fake.sent).toHaveLength(0);
+    expect(uncertainState(runId)).toMatchObject({ notifiedAt: null, uncertainAt: at(14, 10) });
+  });
+
+  it("envio que da certo ou falha antes da aceitacao nao deixa reserva para tras", async () => {
+    const id = createRoutine(db, scriptInput(), at(1, 0));
+    writeSettings(db, { notifyEmail: "dono@example.com" });
+    const fake = createFakeMailer();
+    const { scheduler } = newScheduler(db, { mailer: fake.mailer });
+    clock = at(14, 10);
+    const refused = failedRun(id, at(14, 9));
+    const delivered = failedRun(id, at(14, 9, 30));
+    fake.state.outcomes = [new MailError("connection", "connect ECONNREFUSED 127.0.0.1:587")];
+    expect(await scheduler.notifyFailures()).toBe(1);
+    const sending = (runId: number) => db.prepare(`SELECT notify_sending_at AS "sendingAt" FROM runs WHERE id = ?`).get(runId);
+    expect(sending(refused)).toEqual({ sendingAt: null });
+    expect(sending(delivered)).toEqual({ sendingAt: null });
+    expect(notifyState(refused)).toMatchObject({ notifiedAt: null, notifyAttempts: 1 });
+
+    // A recusa comprovada volta para a fila e sai no minuto seguinte.
+    clock = at(14, 10) + MIN;
+    expect(await scheduler.notifyFailures()).toBe(1);
+    expect(fake.sent).toHaveLength(2);
   });
 
   it("o log do aviso nao traz o endereco completo de quem recebe", async () => {

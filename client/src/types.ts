@@ -23,6 +23,7 @@ export interface RunDto {
   notifiedAt: number | null;
   notifyAttempts: number;
   notifyUncertainAt: number | null;
+  notifySendingAt: number | null;
   createdAt: number;
 }
 
