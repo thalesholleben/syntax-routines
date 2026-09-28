@@ -128,13 +128,22 @@ const pt = {
   mailExitCode: "Código de saída",
   mailFailedSubject: (name: string) => `[Syntax Routines] Falhou: ${name}`,
   mailFailedIntro: (name: string) => `A rotina "${name}" falhou.`,
-  mailFailedIntroHtml: (nameHtml: string) => `A rotina <strong>${nameHtml}</strong> falhou.`,
+  mailFailedBadge: "Falhou",
+  mailFailedTitle: (name: string) => `A rotina ${name} falhou`,
+  mailFailedPreheader: (kind: string, attempt: string, exitCode: string) =>
+    `${kind}, tentativa ${attempt}, código de saída ${exitCode}. O erro completo está no e-mail.`,
   mailError: "Erro",
   mailPanel: "Painel",
   mailOpenPanel: "Abrir o painel",
   mailTestSubject: "[Syntax Routines] E-mail de teste",
+  mailTestBadge: "Teste",
+  mailTestTitle: "E-mail de teste do Syntax Routines",
   mailTestLine1: "Este é o e-mail de teste do Syntax Routines.",
-  mailTestLine2: "Quando uma rotina falhar, o aviso chega neste endereço."
+  mailTestLine2: "Quando uma rotina falhar, o aviso chega neste endereço.",
+  mailInternalBadge: "Aviso interno",
+  mailTagline: "Software sob medida",
+  mailFooter: "Aviso automático do Syntax Routines instalado neste computador.",
+  noteNotifyUncertain: "Aviso por e-mail com entrega incerta: a mensagem saiu inteira e o servidor não confirmou. Pode ter chegado; não será reenviado."
 };
 
 export type Messages = typeof pt;
@@ -233,13 +242,22 @@ const en: Messages = {
   mailExitCode: "Exit code",
   mailFailedSubject: (name: string) => `[Syntax Routines] Failed: ${name}`,
   mailFailedIntro: (name: string) => `The routine "${name}" failed.`,
-  mailFailedIntroHtml: (nameHtml: string) => `The routine <strong>${nameHtml}</strong> failed.`,
+  mailFailedBadge: "Failed",
+  mailFailedTitle: (name: string) => `The routine ${name} failed`,
+  mailFailedPreheader: (kind: string, attempt: string, exitCode: string) =>
+    `${kind}, attempt ${attempt}, exit code ${exitCode}. The full error is in the e-mail.`,
   mailError: "Error",
   mailPanel: "Panel",
   mailOpenPanel: "Open the panel",
   mailTestSubject: "[Syntax Routines] Test e-mail",
+  mailTestBadge: "Test",
+  mailTestTitle: "Syntax Routines test e-mail",
   mailTestLine1: "This is the Syntax Routines test e-mail.",
-  mailTestLine2: "When a routine fails, the alert arrives at this address."
+  mailTestLine2: "When a routine fails, the alert arrives at this address.",
+  mailInternalBadge: "Internal notice",
+  mailTagline: "Custom software",
+  mailFooter: "Automatic notice from the Syntax Routines installed on this computer.",
+  noteNotifyUncertain: "E-mail alert with uncertain delivery: the whole message went out and the server did not confirm. It may have arrived; it will not be sent again."
 };
 
 const MESSAGES: Record<Language, Messages> = { pt, en };

@@ -22,6 +22,8 @@ export interface RunDto {
   note: string | null;
   notifiedAt: number | null;
   notifyAttempts: number;
+  notifyUncertainAt: number | null;
+  notifySendingAt: number | null;
   createdAt: number;
 }
 

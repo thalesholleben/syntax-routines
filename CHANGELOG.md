@@ -47,6 +47,14 @@ commit on `main`.
 
 ### Fixed
 
+- **A failure alert is never delivered twice.** When the whole message had gone out and the SMTP
+  server's final reply was lost (timeout, dropped connection), the alert went back to the retry queue
+  and could arrive again. Now only failures proven to happen before the message was sent (connection,
+  DNS, TLS, login, 4xx/5xx refusal) are retried; an uncertain delivery is kept out of the queue and the
+  run note says the alert may have arrived. Each send is reserved in the database before it starts, so an
+  app that dies right after the server accepted the alert does not send it again on restart: the leftover
+  reservation becomes an uncertain delivery. Schema v3 adds `runs.notify_uncertain_at` and
+  `runs.notify_sending_at`. The alert log no longer shows the full recipient address.
 - **Timeout and cancel now kill the whole tree on macOS and Linux.** The child runs in its own process
   group and the signal goes to the group: before, only the shell died and the command it had started
   (or the agent's subprocess) kept running.
@@ -58,6 +66,11 @@ commit on `main`.
 - Failure alerts that could not be sent are retried n² minutes after the failure (1, 4, 9... up to
   22.8 h) instead of three times in five minutes: an internet outage of a few hours delays the
   alert instead of losing it. The "server not found" reason now also says to check the internet.
+- **Failure and test e-mails in the SyntaxLab internal notice layout**: light card, SyntaxLab logo
+  from a public URL (the app runs locally, so no attachment), status badge, fields table, the error
+  in a monospace box and an "Open the panel" button, in Portuguese or English like the panel. The
+  plain-text part is unchanged and still goes along with the HTML. The default sender name is now
+  `Routines SyntaxLab` (panel account, and `.env` without `MAIL_FROM_NAME`).
 
 ## 0.1.0 · 2026-09-14
 

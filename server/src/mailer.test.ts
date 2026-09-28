@@ -1,4 +1,5 @@
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 
@@ -10,6 +11,7 @@ import {
   classifySmtpError,
   createMailer,
   describeMail,
+  isDeliveryUncertain,
   isLoopbackHost,
   MailError,
   nodemailerTransport,
@@ -106,7 +108,7 @@ function settingsRows(): string {
 
 describe("readSmtpConfig", () => {
   it("padroes do gmail, 587 com STARTTLS, 465 e segura", () => {
-    expect(readSmtpConfig({})).toMatchObject({ host: "smtp.gmail.com", port: 587, isSecure: false, fromName: "Syntax Routines" });
+    expect(readSmtpConfig({})).toMatchObject({ host: "smtp.gmail.com", port: 587, isSecure: false, fromName: "Routines SyntaxLab" });
     expect(readSmtpConfig({ SMTP_PORT: "465" })).toMatchObject({ port: 465, isSecure: true });
     expect(readSmtpConfig({ SMTP_PORT: "465", SMTP_SECURE: "false" })).toMatchObject({ isSecure: false });
   });
@@ -134,6 +136,110 @@ describe("classifySmtpError e transporte", () => {
     expect(requireTls(base)).toBe(true);
     expect(requireTls({ ...base, host: "127.0.0.1" })).toBe(false);
     expect(requireTls({ ...base, port: 465, isSecure: true })).toBe(false);
+  });
+});
+
+/**
+ * SMTP de verdade no loopback que erra de proposito numa fase: fecha a conexao ao receber o RCPT (antes da mensagem),
+ * fecha logo depois do ponto final do DATA sem responder (a confirmacao se perdeu) ou recusa a mensagem com 550.
+ */
+const CRLF = "\r\n";
+
+async function misbehavingSmtp(mode: "dropOnRcpt" | "dropAfterData" | "rejectAfterData") {
+  const received: string[] = [];
+  const server = net.createServer((socket) => {
+    socket.setEncoding("utf8");
+    socket.on("error", () => undefined);
+    let buffer = "";
+    let isData = false;
+    const reply = (line: string) => socket.write(`${line}${CRLF}`);
+    reply("220 teste ESMTP");
+    socket.on("data", (chunk: string) => {
+      buffer += chunk;
+      for (;;) {
+        if (isData) {
+          const end = buffer.indexOf(`${CRLF}.${CRLF}`);
+          if (end === -1) return;
+          received.push(buffer.slice(0, end));
+          buffer = buffer.slice(end + 5);
+          isData = false;
+          if (mode === "dropAfterData") socket.destroy();
+          else reply("550 5.7.1 mensagem recusada");
+          return;
+        }
+        const newline = buffer.indexOf(CRLF);
+        if (newline === -1) return;
+        const verb = buffer.slice(0, newline).split(" ")[0].toUpperCase();
+        buffer = buffer.slice(newline + 2);
+        if (verb === "EHLO") reply(`250-teste${CRLF}250 AUTH PLAIN`);
+        else if (verb === "AUTH") reply("235 2.7.0 ok");
+        else if (verb === "MAIL") reply("250 2.1.0 ok");
+        else if (verb === "RCPT") {
+          if (mode === "dropOnRcpt") return void socket.destroy();
+          reply("250 2.1.5 ok");
+        } else if (verb === "DATA") {
+          isData = true;
+          reply("354 manda");
+        } else if (verb === "QUIT") reply("221 tchau");
+        else reply("250 ok");
+      }
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = server.address() as net.AddressInfo;
+  return { port, received, close: () => new Promise<void>((resolve) => server.close(() => resolve())) };
+}
+
+function loopbackEnv(port: number) {
+  return { SMTP_HOST: "127.0.0.1", SMTP_PORT: String(port), SMTP_USER: "avisos@example.com", SMTP_PASS: "senha", MAIL_FROM_EMAIL: "avisos@example.com" };
+}
+
+async function sendError(port: number): Promise<MailError> {
+  const mailer = createMailer({ db, env: loopbackEnv(port) });
+  const error = await mailer.send(message).catch((caught: unknown) => caught);
+  expect(error).toBeInstanceOf(MailError);
+  return error as MailError;
+}
+
+describe("entrega incerta: a mensagem saiu inteira e o servidor nao confirmou", () => {
+  it("so a marca de mensagem enviada sem recusa 4xx/5xx conta como incerta", () => {
+    expect(isDeliveryUncertain(smtpError("Connection closed unexpectedly", { code: "ECONNECTION", command: "CONN", isMessageSent: true }))).toBe(true);
+    expect(isDeliveryUncertain(smtpError("Timeout", { code: "ETIMEDOUT", command: "CONN", isMessageSent: true }))).toBe(true);
+    expect(isDeliveryUncertain(smtpError("Message failed: 550", { code: "EMESSAGE", command: "DATA", responseCode: 550, isMessageSent: true }))).toBe(false);
+    expect(isDeliveryUncertain(smtpError("Message failed: 451", { code: "EMESSAGE", command: "DATA", responseCode: 451, isMessageSent: true }))).toBe(false);
+    // O mesmo ETIMEDOUT/CONN antes da mensagem sair (sem internet, servidor calado) continua podendo tentar de novo.
+    expect(isDeliveryUncertain(smtpError("Timeout", { code: "ETIMEDOUT", command: "CONN" }))).toBe(false);
+    expect(isDeliveryUncertain(new Error("qualquer"))).toBe(false);
+  });
+
+  it("conexao que cai depois do ponto final do DATA vira MailError incerto", async () => {
+    const smtp = await misbehavingSmtp("dropAfterData");
+    try {
+      const error = await sendError(smtp.port);
+      expect(smtp.received).toHaveLength(1);
+      expect(error.isDeliveryUncertain).toBe(true);
+    } finally {
+      await smtp.close();
+    }
+  });
+
+  it("recusa 550 depois do DATA, queda antes da mensagem e porta fechada nao sao incertas", async () => {
+    const rejecting = await misbehavingSmtp("rejectAfterData");
+    const dropping = await misbehavingSmtp("dropOnRcpt");
+    try {
+      const rejected = await sendError(rejecting.port);
+      expect(rejecting.received).toHaveLength(1);
+      expect(rejected).toMatchObject({ reason: "rejected", isDeliveryUncertain: false });
+      const dropped = await sendError(dropping.port);
+      expect(dropping.received).toHaveLength(0);
+      expect(dropped.isDeliveryUncertain).toBe(false);
+    } finally {
+      await rejecting.close();
+      await dropping.close();
+    }
+    const closed = await misbehavingSmtp("dropOnRcpt");
+    await closed.close();
+    expect(await sendError(closed.port)).toMatchObject({ reason: "connection", isDeliveryUncertain: false });
   });
 });
 
@@ -240,7 +346,7 @@ describe("createMailer com a conta salva pelo painel", () => {
 
     await mailer.send(message);
     expect(state.sent[0].config).toMatchObject({ user: "painel@example.com", pass: "abcdefghijklmnop" });
-    expect(state.sent[0].from).toEqual({ name: "Syntax Routines", address: "painel@example.com" });
+    expect(state.sent[0].from).toEqual({ name: "Routines SyntaxLab", address: "painel@example.com" });
   });
 
   it("falhou o teste, nada muda: nem conta, nem destinatario, nem cofre", async () => {
@@ -368,5 +474,43 @@ describe("notifier", () => {
     const email = buildTestEmail("http://127.0.0.1:4090/");
     expect(email.subject).toBe("[Syntax Routines] E-mail de teste");
     expect(email.text).toContain("http://127.0.0.1:4090/");
+    expect(email.html).toContain(">E-mail de teste do Syntax Routines</h1>");
+    expect(email.html).toContain('<span style="white-space:nowrap;">e-mail</span> de teste');
+    expect(email.html).toContain('class="em-btn__link" href="http://127.0.0.1:4090/"');
+  });
+
+  it("falha no layout claro aprovado: marca SyntaxLab, selo, preheader, erro em bloco e botao do painel", () => {
+    const { html } = buildFailureEmail({ run, routine, panelUrl: "http://127.0.0.1:4090/" });
+    expect(html).toContain('<html lang="pt-BR"');
+    expect(html).toContain('bgcolor="#f2f2ef"');
+    expect(html).not.toContain("#0a0a0a");
+    expect(html).toContain('src="https://syntaxlab.com.br/images/email/logo-syntaxlab.png" width="131" height="21" alt="SyntaxLab"');
+    expect(html).toContain(">Aviso interno</span>");
+    expect(html).toContain(">Falhou</span>");
+    expect(html).toContain(">A rotina Fila &lt;Instagram&gt; falhou</h1>");
+    expect(html).toContain("Script, tentativa 1, código de saída 3. O erro completo está no e-mail.");
+    expect(html).toContain("white-space:pre-wrap;word-break:break-word;\">O comando encerrou com código 3.\n&lt;b&gt;ULTIMA-FALHA&lt;/b&gt;");
+    expect(html).toContain("Software sob medida<br>");
+    expect(html).toContain("Aviso automático do Syntax Routines instalado neste computador.");
+    expect(html).not.toContain("{{");
+  });
+
+  it("layout em ingles quando o idioma e en", () => {
+    const { html, subject } = buildFailureEmail({ run, routine, panelUrl: "http://x/", language: "en" });
+    expect(subject).toBe("[Syntax Routines] Failed: Fila <Instagram>");
+    expect(html).toContain('<html lang="en-US"');
+    expect(html).toContain(">Internal notice</span>");
+    expect(html).toContain(">Failed</span>");
+    expect(html).toContain("Custom software<br>");
+    expect(html).toContain(">Open the panel</a>");
+    expect(buildTestEmail("http://x/", "en").html).toContain(">Syntax Routines test e-mail</h1>");
+  });
+
+  it("nome da rotina nao quebra o assunto nem vira placeholder do layout", () => {
+    const tricky = { ...routine, name: "Linha 1\r\nBcc: x@example.com {{corpo}}" } as RoutineRow;
+    const email = buildFailureEmail({ run, routine: tricky, panelUrl: "http://x/" });
+    expect(email.subject).toBe("[Syntax Routines] Falhou: Linha 1 Bcc: x@example.com {{corpo}}");
+    expect(email.html).toContain("{{corpo}}");
+    expect(email.html.match(/em-card__title/g)?.length).toBe(2);
   });
 });

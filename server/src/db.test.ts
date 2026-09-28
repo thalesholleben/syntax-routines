@@ -52,6 +52,57 @@ CREATE INDEX runs_due ON runs (status, run_at);
 CREATE INDEX runs_routine ON runs (routine_id, id);
 `;
 
+// Schema exatamente como a v2 gravava (antes de notify_uncertain_at), com os indices da v2.
+const SCHEMA_V2 = `
+CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE sessions (token_hash TEXT PRIMARY KEY, expires_at INTEGER NOT NULL);
+CREATE TABLE routines (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  agent_kind TEXT NOT NULL CHECK (agent_kind IN ('CLAUDE', 'CODEX', 'SCRIPT')),
+  directory TEXT NOT NULL,
+  model TEXT,
+  effort TEXT NOT NULL,
+  timeout_minutes INTEGER NOT NULL,
+  fallback_enabled INTEGER NOT NULL,
+  days_json TEXT NOT NULL,
+  time TEXT NOT NULL,
+  prompt TEXT NOT NULL,
+  missed_policy TEXT NOT NULL CHECK (missed_policy IN ('SKIP', 'RUN_ON_BOOT')),
+  enabled INTEGER NOT NULL DEFAULT 1,
+  command TEXT,
+  interval_minutes INTEGER,
+  created_at INTEGER NOT NULL,
+  updated_at INTEGER NOT NULL
+);
+CREATE TABLE runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  routine_id INTEGER NOT NULL REFERENCES routines (id) ON DELETE CASCADE,
+  trigger_type TEXT NOT NULL CHECK (trigger_type IN ('SCHEDULE', 'MANUAL')),
+  scheduled_for INTEGER NOT NULL,
+  run_at INTEGER,
+  status TEXT NOT NULL CHECK (status IN ('QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED', 'SKIPPED', 'CANCELED')),
+  force_agent TEXT CHECK (force_agent IN ('CLAUDE', 'CODEX')),
+  agent_kind TEXT CHECK (agent_kind IN ('CLAUDE', 'CODEX', 'SCRIPT')),
+  attempt INTEGER NOT NULL DEFAULT 0,
+  started_at INTEGER,
+  finished_at INTEGER,
+  exit_code INTEGER,
+  result TEXT,
+  error TEXT,
+  note TEXT,
+  notified_at INTEGER,
+  notify_attempts INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL
+);
+CREATE UNIQUE INDEX runs_schedule_once ON runs (routine_id, scheduled_for) WHERE trigger_type = 'SCHEDULE';
+CREATE INDEX runs_due ON runs (status, run_at);
+CREATE INDEX runs_routine ON runs (routine_id, id);
+CREATE INDEX runs_ended ON runs (COALESCE(finished_at, created_at));
+INSERT INTO meta (key, value) VALUES ('schema_version', '2');
+`;
+
 let tmp = "";
 let file = "";
 
@@ -101,7 +152,8 @@ describe("openDb", () => {
     createV1();
     const db = openDb(file);
 
-    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "2" });
+    // v1 -> v2 -> v3 na mesma abertura.
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "3" });
     expect(db.prepare("SELECT value FROM meta WHERE key = 'last_tick_at'").get()).toEqual({ value: "5" });
     expect(db.prepare("SELECT value FROM settings WHERE key = 'root_directory'").get()).toEqual({ value: "C:\\p" });
 
@@ -138,7 +190,9 @@ describe("openDb", () => {
       note: "nota",
       created_at: 999,
       notified_at: null,
-      notify_attempts: 0
+      notify_attempts: 0,
+      notify_uncertain_at: null,
+      notify_sending_at: null
     });
 
     expect(db.prepare("PRAGMA foreign_key_check").all()).toEqual([]);
@@ -166,8 +220,42 @@ describe("openDb", () => {
     openDb(file).close();
     const db = openDb(file);
     expect(db.prepare("SELECT COUNT(*) AS n FROM runs").get()).toEqual({ n: 1 });
-    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "2" });
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "3" });
     db.close();
+  });
+
+  it("migra a v2 para a v3: execucao intacta, coluna de entrega incerta vazia, indices e cascade de pe", () => {
+    const raw = new DatabaseSync(file);
+    raw.exec("PRAGMA journal_mode = WAL;");
+    raw.exec("PRAGMA foreign_keys = ON;");
+    raw.exec(SCHEMA_V2);
+    raw.prepare(
+      `INSERT INTO routines (id, name, agent_kind, directory, model, effort, timeout_minutes, fallback_enabled, days_json, time, prompt,
+        missed_policy, enabled, command, interval_minutes, created_at, updated_at)
+      VALUES (3, 'Fila', 'SCRIPT', 'C:\\p', NULL, '', 15, 0, '[1]', '00:00', '', 'SKIP', 1, 'cmd /c echo oi', 15, 1, 1)`
+    ).run();
+    raw.prepare(
+      `INSERT INTO runs (id, routine_id, trigger_type, scheduled_for, status, finished_at, error, notified_at, notify_attempts, created_at)
+      VALUES (9, 3, 'MANUAL', 10, 'FAILED', 20, 'erro', NULL, 4, 10)`
+    ).run();
+    raw.close();
+
+    const db = openDb(file);
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "3" });
+    expect(db.prepare("SELECT * FROM runs").get()).toMatchObject({ id: 9, routine_id: 3, error: "erro", notified_at: null, notify_attempts: 4, notify_uncertain_at: null, notify_sending_at: null });
+    expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
+    const indexes = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'runs'").all() as { name: string }[]).map(
+      (index) => index.name
+    );
+    expect(indexes).toEqual(expect.arrayContaining(["runs_schedule_once", "runs_due", "runs_routine", "runs_ended"]));
+    db.prepare("DELETE FROM routines WHERE id = 3").run();
+    expect(db.prepare("SELECT COUNT(*) AS n FROM runs").get()).toEqual({ n: 0 });
+    db.close();
+
+    // Abrir de novo nao muda nada.
+    const again = openDb(file);
+    expect(again.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "3" });
+    again.close();
   });
 
   it("falha no meio da migracao deixa a v1 intacta e o pragma religado", () => {
