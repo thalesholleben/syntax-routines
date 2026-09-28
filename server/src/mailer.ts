@@ -81,7 +81,7 @@ export interface MailTransport {
 
 export type TransportFactory = (config: SmtpConfig) => MailTransport;
 
-const DEFAULT_FROM_NAME = "Syntax Routines";
+const DEFAULT_FROM_NAME = "Routines SyntaxLab";
 
 // Chaves da tabela settings. A senha so existe cifrada; `readSettings` nao le nenhuma delas.
 const KEY = {

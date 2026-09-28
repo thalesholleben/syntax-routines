@@ -106,7 +106,7 @@ function settingsRows(): string {
 
 describe("readSmtpConfig", () => {
   it("padroes do gmail, 587 com STARTTLS, 465 e segura", () => {
-    expect(readSmtpConfig({})).toMatchObject({ host: "smtp.gmail.com", port: 587, isSecure: false, fromName: "Syntax Routines" });
+    expect(readSmtpConfig({})).toMatchObject({ host: "smtp.gmail.com", port: 587, isSecure: false, fromName: "Routines SyntaxLab" });
     expect(readSmtpConfig({ SMTP_PORT: "465" })).toMatchObject({ port: 465, isSecure: true });
     expect(readSmtpConfig({ SMTP_PORT: "465", SMTP_SECURE: "false" })).toMatchObject({ isSecure: false });
   });
@@ -240,7 +240,7 @@ describe("createMailer com a conta salva pelo painel", () => {
 
     await mailer.send(message);
     expect(state.sent[0].config).toMatchObject({ user: "painel@example.com", pass: "abcdefghijklmnop" });
-    expect(state.sent[0].from).toEqual({ name: "Syntax Routines", address: "painel@example.com" });
+    expect(state.sent[0].from).toEqual({ name: "Routines SyntaxLab", address: "painel@example.com" });
   });
 
   it("falhou o teste, nada muda: nem conta, nem destinatario, nem cofre", async () => {
@@ -368,5 +368,43 @@ describe("notifier", () => {
     const email = buildTestEmail("http://127.0.0.1:4090/");
     expect(email.subject).toBe("[Syntax Routines] E-mail de teste");
     expect(email.text).toContain("http://127.0.0.1:4090/");
+    expect(email.html).toContain(">E-mail de teste do Syntax Routines</h1>");
+    expect(email.html).toContain('<span style="white-space:nowrap;">e-mail</span> de teste');
+    expect(email.html).toContain('class="em-btn__link" href="http://127.0.0.1:4090/"');
+  });
+
+  it("falha no layout claro aprovado: marca SyntaxLab, selo, preheader, erro em bloco e botao do painel", () => {
+    const { html } = buildFailureEmail({ run, routine, panelUrl: "http://127.0.0.1:4090/" });
+    expect(html).toContain('<html lang="pt-BR"');
+    expect(html).toContain('bgcolor="#f2f2ef"');
+    expect(html).not.toContain("#0a0a0a");
+    expect(html).toContain('src="https://syntaxlab.com.br/images/email/logo-syntaxlab.png" width="131" height="21" alt="SyntaxLab"');
+    expect(html).toContain(">Aviso interno</span>");
+    expect(html).toContain(">Falhou</span>");
+    expect(html).toContain(">A rotina Fila &lt;Instagram&gt; falhou</h1>");
+    expect(html).toContain("Script, tentativa 1, código de saída 3. O erro completo está no e-mail.");
+    expect(html).toContain("white-space:pre-wrap;word-break:break-word;\">O comando encerrou com código 3.\n&lt;b&gt;ULTIMA-FALHA&lt;/b&gt;");
+    expect(html).toContain("Software sob medida<br>");
+    expect(html).toContain("Aviso automático do Syntax Routines instalado neste computador.");
+    expect(html).not.toContain("{{");
+  });
+
+  it("layout em ingles quando o idioma e en", () => {
+    const { html, subject } = buildFailureEmail({ run, routine, panelUrl: "http://x/", language: "en" });
+    expect(subject).toBe("[Syntax Routines] Failed: Fila <Instagram>");
+    expect(html).toContain('<html lang="en-US"');
+    expect(html).toContain(">Internal notice</span>");
+    expect(html).toContain(">Failed</span>");
+    expect(html).toContain("Custom software<br>");
+    expect(html).toContain(">Open the panel</a>");
+    expect(buildTestEmail("http://x/", "en").html).toContain(">Syntax Routines test e-mail</h1>");
+  });
+
+  it("nome da rotina nao quebra o assunto nem vira placeholder do layout", () => {
+    const tricky = { ...routine, name: "Linha 1\r\nBcc: x@example.com {{corpo}}" } as RoutineRow;
+    const email = buildFailureEmail({ run, routine: tricky, panelUrl: "http://x/" });
+    expect(email.subject).toBe("[Syntax Routines] Falhou: Linha 1 Bcc: x@example.com {{corpo}}");
+    expect(email.html).toContain("{{corpo}}");
+    expect(email.html.match(/em-card__title/g)?.length).toBe(2);
   });
 });

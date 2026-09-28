@@ -58,6 +58,11 @@ commit on `main`.
 - Failure alerts that could not be sent are retried n² minutes after the failure (1, 4, 9... up to
   22.8 h) instead of three times in five minutes: an internet outage of a few hours delays the
   alert instead of losing it. The "server not found" reason now also says to check the internet.
+- **Failure and test e-mails in the SyntaxLab internal notice layout**: light card, SyntaxLab logo
+  from a public URL (the app runs locally, so no attachment), status badge, fields table, the error
+  in a monospace box and an "Open the panel" button, in Portuguese or English like the panel. The
+  plain-text part is unchanged and still goes along with the HTML. The default sender name is now
+  `Routines SyntaxLab` (panel account, and `.env` without `MAIL_FROM_NAME`).
 
 ## 0.1.0 · 2026-09-14
 
