@@ -7,6 +7,12 @@ commit on `main`.
 
 ### Added
 
+- **Newer models in the routine dialog.** Claude Opus 5.5 (`claude-opus-5-5`) and Sonnet 5.5
+  (`claude-sonnet-5-5`); Codex ASTRA 6, SOL 6 and LUNA 6 (`gpt-6-astra`, `gpt-6-sol`,
+  `gpt-6-luna`). The previous ones stay, now labelled with their generation (SOL 5.6, TERRA 5.6,
+  LUNA 5.6) because two generations share the same code names. Routines already saved keep their
+  model, and the default is still the CLI's own.
+
 - **Operations dashboard.** A third screen with a clickable 24-hour schedule by executor,
   next occurrence, live queue and capacity, 24-hour/7-day/30-day history, error rate,
   average duration, activity chart and failure ranking with direct access to run logs.

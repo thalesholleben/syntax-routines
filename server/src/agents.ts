@@ -17,16 +17,23 @@ export const EFFORTS_BY_KIND: Record<AgentKind, readonly string[]> = {
   CODEX: ["minimal", "low", "medium", "high"]
 };
 
+// Do mais novo para o mais antigo, como os CLIs listam. A geracao entra no rotulo desde que existem
+// duas em uso (SOL 6 e SOL 5.6 sao modelos diferentes); o `value` e o que vai no `--model`, e nao muda.
 export const MODELS_BY_KIND: Record<AgentKind, readonly { value: string; label: string }[]> = {
   CLAUDE: [
+    { value: "claude-opus-5-5", label: "Opus 5.5" },
     { value: "claude-opus-5", label: "Opus 5" },
+    { value: "claude-sonnet-5-5", label: "Sonnet 5.5" },
     { value: "claude-sonnet-5", label: "Sonnet 5" },
     { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5" }
   ],
   CODEX: [
-    { value: "gpt-5.6-sol", label: "SOL" },
-    { value: "gpt-5.6-terra", label: "TERRA" },
-    { value: "gpt-5.6-luna", label: "LUNA" }
+    { value: "gpt-6-astra", label: "ASTRA 6" },
+    { value: "gpt-6-sol", label: "SOL 6" },
+    { value: "gpt-6-luna", label: "LUNA 6" },
+    { value: "gpt-5.6-sol", label: "SOL 5.6" },
+    { value: "gpt-5.6-terra", label: "TERRA 5.6" },
+    { value: "gpt-5.6-luna", label: "LUNA 5.6" }
   ]
 };
 
