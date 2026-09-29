@@ -6,6 +6,7 @@ import path from "node:path";
 
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { MODELS_BY_KIND, type AgentKind } from "./agents";
 import { createApp } from "./app";
 import { openDb, type Db } from "./db";
 import { setLogFile } from "./log";
@@ -379,6 +380,31 @@ describe("com sessao", () => {
     const cookie = await sessionWithRoot();
     expect((await request("POST", "/api/routines", { cookie, body: scriptBody(overrides) })).status).toBe(400);
     expect((await request("GET", "/api/routines", { cookie })).body.routines).toHaveLength(0);
+  });
+
+  // Cada modelo da lista e aceito pelo agente dono e recusado pelo outro: o `value` aqui e o que vai no
+  // `--model` do CLI, entao a lista e contrato, nao enfeite de tela.
+  it("aceita todos os modelos oferecidos, cada um so no agente dele", async () => {
+    const cookie = await sessionWithRoot();
+    for (const kind of ["CLAUDE", "CODEX"] as AgentKind[]) {
+      const other = kind === "CLAUDE" ? "CODEX" : "CLAUDE";
+      for (const { value } of MODELS_BY_KIND[kind]) {
+        const created = await request("POST", "/api/routines", {
+          cookie,
+          body: routineBody({ name: `rotina ${value}`, agentKind: kind, model: value, effort: "medium" })
+        });
+        expect(created.status, `${kind} ${value}: ${JSON.stringify(created.body)}`).toBe(201);
+        expect(created.body.routine).toMatchObject({ agentKind: kind, model: value });
+        const wrongAgent = await request("POST", "/api/routines", {
+          cookie,
+          body: routineBody({ name: `errada ${value}`, agentKind: other, model: value, effort: "medium" })
+        });
+        expect(wrongAgent.status, `${other} nao deveria aceitar ${value}`).toBe(400);
+      }
+    }
+    expect((await request("GET", "/api/routines", { cookie })).body.routines).toHaveLength(
+      MODELS_BY_KIND.CLAUDE.length + MODELS_BY_KIND.CODEX.length
+    );
   });
 
   it("script e gravado normalizado (sem modelo, effort, prompt ou fallback) e roda pelo runner de script", async () => {
