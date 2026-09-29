@@ -23,7 +23,7 @@
     "test": "vitest run",
     "e2e": "node e2e/smoke.mjs",
     "import": "tsx --disable-warning=ExperimentalWarning scripts/import-routines.ts",
-    "test:ps1": "pwsh -File service/listener.test.ps1 && pwsh -File scripts/check-backup.test.ps1",
+    "test:ps1": "pwsh -File service/listener.test.ps1 && pwsh -File service/install.test.ps1 && pwsh -File scripts/check-backup.test.ps1",
     "test:sh": "sh service/listener.test.sh && sh service/install.test.sh",
     "routines": "tsx --disable-warning=ExperimentalWarning scripts/routines-cli.ts",
     "skills:check": "node scripts/check-skills.mjs",

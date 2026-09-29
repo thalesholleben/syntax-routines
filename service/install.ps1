@@ -14,13 +14,18 @@
 .PARAMETER Build
   Roda npm install e npm run build antes de registrar a tarefa.
 
+.PARAMETER PrintTask
+  Imprime a definicao da tarefa (uma linha `chave=valor` por campo) e sai, sem registrar nada.
+
 .EXAMPLE
   .\service\install.ps1 -Build
 #>
 
 [CmdletBinding()]
 param(
-  [switch]$Build
+  [switch]$Build,
+  # Imprime a definicao da tarefa e sai, sem registrar, parar ou construir nada. E o gancho do install.test.ps1.
+  [switch]$PrintTask
 )
 
 $ErrorActionPreference = "Stop"
@@ -30,10 +35,49 @@ $ProjectDir = Split-Path $PSScriptRoot -Parent
 $Entry = Join-Path $ProjectDir "dist\server\index.mjs"
 $User = "$env:USERDOMAIN\$env:USERNAME"
 $Url = "http://127.0.0.1:$Port/"
+# Primeira subida com o cache do sistema frio (logo depois de um build) le milhares de arquivos de
+# node_modules com o antivirus no caminho; 45 s cobre isso sem esconder um app que nao sobe mesmo.
+$ReadyDeadlineSeconds = 45
 
 $nodeCommand = Get-Command node -ErrorAction SilentlyContinue
 if (-not $nodeCommand) { throw "node.exe nao encontrado no PATH. Instale o Node.js 24.13 ou mais novo." }
 $node = $nodeCommand.Source
+
+$conhost = Join-Path $env:WINDIR "System32\conhost.exe"
+$arguments = "--headless `"$node`" --disable-warning=ExperimentalWarning `"$Entry`""
+$action = New-ScheduledTaskAction -Execute $conhost -Argument $arguments -WorkingDirectory $ProjectDir
+$trigger = New-ScheduledTaskTrigger -AtLogOn -User $User
+$settings = New-ScheduledTaskSettingsSet `
+  -AllowStartIfOnBatteries `
+  -DontStopIfGoingOnBatteries `
+  -StartWhenAvailable `
+  -MultipleInstances IgnoreNew `
+  -ExecutionTimeLimit ([TimeSpan]::Zero) `
+  -RestartCount 999 `
+  -RestartInterval (New-TimeSpan -Minutes 1)
+# O Agendador registra tarefa em prioridade 7 (segundo plano, com E/S estrangulada). Com o antivirus
+# conferindo cada leitura, carregar node_modules nessa faixa passa de minutos e o app parece travado na
+# subida: 4 s em prioridade 4 contra nenhuma resposta em 5 min na 7. Prioridade 4 e a do processo normal.
+$settings.Priority = 4
+# RunLevel padrao (Limited): token normal do usuario, sem elevacao.
+$principal = New-ScheduledTaskPrincipal -UserId $User -LogonType Interactive
+
+# Definicao da tarefa sem registrar nada: e o que o install.test.ps1 confere, do mesmo jeito que o
+# install.sh imprime a unit do systemd e o plist do launchd.
+if ($PrintTask) {
+  "priority=$($settings.Priority)"
+  "multipleinstances=$($settings.MultipleInstances)"
+  "executiontimelimit=$($settings.ExecutionTimeLimit)"
+  "restartcount=$($settings.RestartCount)"
+  "logontype=$($principal.LogonType)"
+  "runlevel=$($principal.RunLevel)"
+  "execute=$($action.Execute)"
+  "arguments=$($action.Arguments)"
+  "workingdirectory=$($action.WorkingDirectory)"
+  "readydeadlineseconds=$ReadyDeadlineSeconds"
+  exit 0
+}
+
 
 if ($Build) {
   Write-Host "==> npm install e npm run build..." -ForegroundColor Cyan
@@ -65,21 +109,6 @@ if ($stop.Status -eq "encerrado") {
 } elseif ($stop.Status -eq "outro") {
   throw "A porta $Port esta ocupada por outro processo: $($stop.Listener.Name) (PID $($stop.Listener.ProcessId)) $($stop.Listener.CommandLine). Nada foi encerrado. Libere a porta e rode de novo."
 }
-
-$conhost = Join-Path $env:WINDIR "System32\conhost.exe"
-$arguments = "--headless `"$node`" --disable-warning=ExperimentalWarning `"$Entry`""
-$action = New-ScheduledTaskAction -Execute $conhost -Argument $arguments -WorkingDirectory $ProjectDir
-$trigger = New-ScheduledTaskTrigger -AtLogOn -User $User
-$settings = New-ScheduledTaskSettingsSet `
-  -AllowStartIfOnBatteries `
-  -DontStopIfGoingOnBatteries `
-  -StartWhenAvailable `
-  -MultipleInstances IgnoreNew `
-  -ExecutionTimeLimit ([TimeSpan]::Zero) `
-  -RestartCount 999 `
-  -RestartInterval (New-TimeSpan -Minutes 1)
-# RunLevel padrao (Limited): token normal do usuario, sem elevacao.
-$principal = New-ScheduledTaskPrincipal -UserId $User -LogonType Interactive
 
 Register-ScheduledTask `
   -TaskName $TaskName `
@@ -120,7 +149,7 @@ if ($browser) {
 }
 
 Start-ScheduledTask -TaskName $TaskName
-$deadline = (Get-Date).AddSeconds(20)
+$deadline = (Get-Date).AddSeconds($ReadyDeadlineSeconds)
 $isUp = $false
 while ((Get-Date) -lt $deadline) {
   try {
