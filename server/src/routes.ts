@@ -96,12 +96,19 @@ function buildRoutineSchema(m: Messages) {
         .refine((value) => value === null || (INTERVAL_OPTIONS_MINUTES as readonly number[]).includes(value), {
           message: m.intervalInvalid
         }),
+      // Janela do intervalo; opcional para quem ja mandava o cadastro sem ela (importacao, CLI, painel antigo).
+      windowStart: z.string().regex(TIME_PATTERN, m.timeInvalid).default("00:00"),
+      windowEnd: z.string().regex(TIME_PATTERN, m.timeInvalid).default("00:00"),
       prompt: z.string().max(20_000),
       command: z.string().max(COMMAND_MAX_CHARS, m.commandTooLong(COMMAND_MAX_CHARS)),
       missedPolicy: z.enum(["SKIP", "RUN_ON_BOOT"]),
       isEnabled: z.boolean()
     })
     .superRefine((value, ctx) => {
+      // HH:MM com zero a esquerda: comparar como texto e comparar o horario.
+      if (value.intervalMinutes !== null && value.windowEnd < value.windowStart) {
+        ctx.addIssue({ code: "custom", path: ["windowEnd"], message: m.windowEndBeforeStart });
+      }
       if (value.agentKind === "SCRIPT") {
         if (!value.command.trim()) ctx.addIssue({ code: "custom", path: ["command"], message: m.commandRequired });
         if (/[\r\n]/.test(value.command)) ctx.addIssue({ code: "custom", path: ["command"], message: m.commandOneLine });
@@ -131,12 +138,13 @@ export function routineSchemaFor(language: Language) {
   return ROUTINE_SCHEMAS[language];
 }
 
-/** O que vai para o banco: script sem resquício de agente, agente sem comando. */
+/** O que vai para o banco: script sem resquício de agente, agente sem comando, hora fixa sem janela. */
 export function normalizeRoutine(input: z.infer<typeof routineSchema>): RoutineInput {
-  if (!isAgentKind(input.agentKind)) {
-    return { ...input, prompt: "", model: null, effort: "", isFallbackEnabled: false, command: input.command.trim() };
+  const routine = input.intervalMinutes === null ? { ...input, windowStart: "00:00", windowEnd: "00:00" } : input;
+  if (!isAgentKind(routine.agentKind)) {
+    return { ...routine, prompt: "", model: null, effort: "", isFallbackEnabled: false, command: routine.command.trim() };
   }
-  return { ...input, command: null };
+  return { ...routine, command: null };
 }
 
 function settingsSchemaFor(m: Messages) {

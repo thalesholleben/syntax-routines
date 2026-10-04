@@ -142,6 +142,8 @@ function routineInput(overrides: Partial<RoutineInput> = {}): RoutineInput {
     days: [1],
     time: "09:00",
     intervalMinutes: null,
+    windowStart: "00:00",
+    windowEnd: "00:00",
     prompt: "faz o resumo",
     command: null,
     missedPolicy: "SKIP",

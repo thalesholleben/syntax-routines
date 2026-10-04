@@ -25,6 +25,8 @@ const NEW_ROUTINE: RoutinePayload = {
   days: [1, 2, 3, 4, 5],
   time: "09:00",
   intervalMinutes: null,
+  windowStart: "00:00",
+  windowEnd: "00:00",
   prompt: "",
   command: "",
   missedPolicy: "RUN_ON_BOOT",
@@ -32,7 +34,7 @@ const NEW_ROUTINE: RoutinePayload = {
 };
 
 function toPayload(routine: RoutineDto): RoutinePayload {
-  const { name, agentKind, directory, model, effort, timeoutMinutes, isFallbackEnabled, days, time, intervalMinutes, prompt, command, missedPolicy, isEnabled } =
+  const { name, agentKind, directory, model, effort, timeoutMinutes, isFallbackEnabled, days, time, intervalMinutes, windowStart, windowEnd, prompt, command, missedPolicy, isEnabled } =
     routine;
   return {
     name,
@@ -45,6 +47,8 @@ function toPayload(routine: RoutineDto): RoutinePayload {
     days,
     time,
     intervalMinutes,
+    windowStart,
+    windowEnd,
     prompt,
     command: command ?? "",
     missedPolicy,
@@ -122,7 +126,7 @@ export function RoutineModal({
     f.agentLabel[form.agentKind],
     ...(isScript ? [] : [form.effort]),
     m.minutes(form.timeoutMinutes),
-    f.formatSchedule(form.days, form.time, form.intervalMinutes)
+    f.formatSchedule(form.days, form.time, form.intervalMinutes, form.windowStart, form.windowEnd)
   ].join(" · ");
 
   function update(patch: Partial<RoutinePayload>) {
@@ -156,6 +160,8 @@ export function RoutineModal({
     if (!form.directory) return setError(m.vDirectory);
     if (form.days.length === 0) return setError(m.vDays);
     if (!isInterval && !TIME_PATTERN.test(form.time)) return setError(m.vTime);
+    if (isInterval && !(TIME_PATTERN.test(form.windowStart) && TIME_PATTERN.test(form.windowEnd))) return setError(m.vTime);
+    if (isInterval && form.windowEnd < form.windowStart) return setError(m.vWindow);
     if (isScript && !form.command.trim()) return setError(m.vCommand);
     if (!isScript && !form.prompt.trim()) return setError(m.vPrompt);
     setIsBusy(true);
@@ -321,7 +327,31 @@ export function RoutineModal({
             )}
           </div>
           {isInterval && (
-            <p className="mt-2 text-xs text-[var(--color-fg-muted)]">{m.intervalHint}</p>
+            <>
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <div>
+                  <Label htmlFor={`${baseId}-window-start`}>{m.windowStart}</Label>
+                  <Input
+                    id={`${baseId}-window-start`}
+                    type="time"
+                    required
+                    value={form.windowStart}
+                    onChange={(event) => update({ windowStart: event.target.value })}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor={`${baseId}-window-end`}>{m.windowEnd}</Label>
+                  <Input
+                    id={`${baseId}-window-end`}
+                    type="time"
+                    required
+                    value={form.windowEnd}
+                    onChange={(event) => update({ windowEnd: event.target.value })}
+                  />
+                </div>
+              </div>
+              <p className="mt-2 text-xs text-[var(--color-fg-muted)]">{m.intervalHint}</p>
+            </>
           )}
         </fieldset>
 

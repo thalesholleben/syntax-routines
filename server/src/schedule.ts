@@ -1,5 +1,6 @@
 // Calculo puro das ocorrencias de uma rotina em horario local: dias da semana + HH:MM, ou dias da semana +
-// "a cada N minutos" (grade alinhada a meia-noite local). Sem banco e sem relogio: quem chama passa os instantes em ms.
+// "a cada N minutos" (grade alinhada a meia-noite local ou, com janela, ao inicio dela). Sem banco e sem relogio: quem
+// chama passa os instantes em ms.
 
 import { DEFAULT_LANGUAGE, messages, type Language } from "./i18n";
 
@@ -17,6 +18,9 @@ export interface ScheduleSpec {
   time: string;
   /** "A cada N minutos" nos dias marcados; nulo ou ausente = hora fixa. */
   intervalMinutes?: number | null;
+  /** Janela do intervalo (HH:MM, fim inclusivo). Inicio igual ao fim, ou ausente, = o dia inteiro. */
+  windowStart?: string;
+  windowEnd?: string;
 }
 
 export interface PlannedRun {
@@ -35,12 +39,18 @@ function timeToMinutes(time: string): number {
   return hours * 60 + minutes;
 }
 
-/** Minutos do dia em que a rotina dispara: um so (hora fixa) ou a grade do intervalo. */
+/**
+ * Minutos do dia em que a rotina dispara: um so (hora fixa) ou a grade do intervalo. Com janela, a grade comeca no
+ * inicio dela e vai ate o fim, inclusive (08:00 a 20:00 de 1 em 1 h = 08:00, 09:00 ... 20:00).
+ */
 function slotsOfDay(spec: ScheduleSpec): number[] {
   const interval = spec.intervalMinutes ?? null;
   if (interval === null) return [timeToMinutes(spec.time)];
+  const start = timeToMinutes(spec.windowStart ?? "00:00");
+  const end = timeToMinutes(spec.windowEnd ?? "00:00");
+  const [first, last] = start === end ? [0, MINUTES_PER_DAY - 1] : [start, end];
   const slots: number[] = [];
-  for (let minute = 0; minute < MINUTES_PER_DAY; minute += interval) slots.push(minute);
+  for (let minute = first; minute <= last; minute += interval) slots.push(minute);
   return slots;
 }
 

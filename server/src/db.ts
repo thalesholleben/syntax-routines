@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 
 export type Db = DatabaseSync;
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 const SCHEMA_VERSION_KEY = "schema_version";
 
 // Colunas em snake_case; toda leitura sai com alias camelCase (`AS "campo"`).
@@ -25,6 +25,8 @@ const ROUTINES_COLUMNS = `
   enabled INTEGER NOT NULL DEFAULT 1,
   command TEXT,
   interval_minutes INTEGER,
+  window_start TEXT NOT NULL DEFAULT '00:00',
+  window_end TEXT NOT NULL DEFAULT '00:00',
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL`;
 
@@ -164,6 +166,33 @@ function migrateV2ToV3(db: Db): void {
   }
 }
 
+/**
+ * v3 -> v4: routines ganha a janela do intervalo (`window_start`, `window_end`, HH:MM). Iguais = o dia inteiro, que e
+ * o comportamento de antes, entao as rotinas existentes ficam com '00:00' nas duas. So acrescenta colunas, no mesmo
+ * roteiro da v3. Quem vem da v1 ja tem as colunas, porque a v2 recria routines com as colunas atuais.
+ */
+function migrateV3ToV4(db: Db): void {
+  db.exec("PRAGMA foreign_keys = OFF");
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const columns = (db.prepare("PRAGMA table_info(routines)").all() as { name: string }[]).map((column) => column.name);
+      for (const column of ["window_start", "window_end"]) {
+        if (!columns.includes(column)) db.exec(`ALTER TABLE routines ADD COLUMN ${column} TEXT NOT NULL DEFAULT '00:00'`);
+      }
+      const violations = db.prepare("PRAGMA foreign_key_check").all();
+      if (violations.length > 0) throw new Error(`migração v4: ${violations.length} referência(s) quebrada(s) em runs.routine_id`);
+      writeSchemaVersion(db, 4);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    db.exec("PRAGMA foreign_keys = ON");
+  }
+}
+
 /** Abre (ou cria) o banco. Idempotente: nao altera linhas existentes; migra o schema quando ele e de uma versao anterior. */
 export function openDb(file: string): Db {
   if (file !== ":memory:") mkdirSync(path.dirname(file), { recursive: true });
@@ -179,6 +208,7 @@ export function openDb(file: string): Db {
     } else {
       if (readSchemaVersion(db) < 2) migrateV1ToV2(db);
       if (readSchemaVersion(db) < 3) migrateV2ToV3(db);
+      if (readSchemaVersion(db) < 4) migrateV3ToV4(db);
     }
   } catch (error) {
     // Sem fechar, o arquivo fica preso ate o processo morrer (no Windows nem apagar da).

@@ -6,7 +6,7 @@ import { readSettings } from "./settings";
 
 const HOUR = 3_600_000;
 interface Summary { succeeded: number; failed: number; skipped: number; canceled: number; averageMs: number | null }
-interface ScheduleRow { id: number; name: string; agentKind: ExecutorKind; daysJson: string; time: string; intervalMinutes: number | null; isEnabled: number }
+interface ScheduleRow { id: number; name: string; agentKind: ExecutorKind; daysJson: string; time: string; intervalMinutes: number | null; windowStart: string; windowEnd: string; isEnabled: number }
 export interface DashboardRun {
   id: number; routineId: number; name: string; agentKind: ExecutorKind; status: RunStatus;
   startedAt: number | null; finishedAt: number | null; runAt: number | null; scheduledFor: number; attempt: number;
@@ -56,13 +56,13 @@ export function readDashboard(db: Db, now: number, hours: number) {
     GROUP BY t.id ORDER BY count DESC, "lastAt" DESC, t.id LIMIT 8`)
     .all({ from, now }) as unknown as { routineId: number; name: string; count: number; lastAt: number; runId: number }[];
   const routines = db.prepare(`SELECT id, name, agent_kind AS "agentKind", days_json AS "daysJson", time,
-    interval_minutes AS "intervalMinutes", enabled AS "isEnabled" FROM routines`).all() as unknown as ScheduleRow[];
+    interval_minutes AS "intervalMinutes", window_start AS "windowStart", window_end AS "windowEnd", enabled AS "isEnabled" FROM routines`).all() as unknown as ScheduleRow[];
   const horizon = Array.from({ length: 24 }, (_, i) => ({ at: now + i * HOUR, CLAUDE: 0, CODEX: 0, SCRIPT: 0 }));
   const upcoming: { routineId: number; name: string; agentKind: ExecutorKind; at: number }[] = [];
   const nextByRoutine: typeof upcoming = [];
   for (const routine of routines) {
     if (!routine.isEnabled) continue;
-    const spec = { days: JSON.parse(routine.daysJson) as number[], time: routine.time, intervalMinutes: routine.intervalMinutes };
+    const spec = { ...routine, days: JSON.parse(routine.daysJson) as number[] };
     const next = nextOccurrence(spec, now);
     if (next !== null) nextByRoutine.push({ routineId: routine.id, name: routine.name, agentKind: routine.agentKind, at: next });
     for (const at of occurrencesBetween(spec, now, now + 24 * HOUR)) {

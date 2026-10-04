@@ -39,6 +39,9 @@ export interface RoutinePayload {
   time: string;
   /** "A cada N minutos" nos dias marcados; nulo = hora fixa em `time`. */
   intervalMinutes: number | null;
+  /** Janela do intervalo (HH:MM, fim inclusivo); inicio igual ao fim = o dia inteiro. */
+  windowStart: string;
+  windowEnd: string;
   prompt: string;
   /** Comando da rotina de script; vazio nos agentes. */
   command: string;

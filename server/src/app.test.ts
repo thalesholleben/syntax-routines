@@ -324,6 +324,21 @@ describe("com sessao", () => {
     expect((await request("GET", "/api/routines", { cookie })).body.routines).toHaveLength(0);
   });
 
+  it("janela do intervalo: sem os campos vale o dia inteiro, com eles grava, e a hora fixa grava sem janela", async () => {
+    const cookie = await sessionWithRoot();
+    const plain = await request("POST", "/api/routines", { cookie, body: scriptBody({ name: "Sem janela", intervalMinutes: 60 }) });
+    expect(plain.body.routine).toMatchObject({ windowStart: "00:00", windowEnd: "00:00" });
+
+    const windowed = await request("POST", "/api/routines", {
+      cookie,
+      body: scriptBody({ name: "Comercial", intervalMinutes: 60, windowStart: "08:00", windowEnd: "20:00" })
+    });
+    expect(windowed).toMatchObject({ status: 201, body: { routine: { windowStart: "08:00", windowEnd: "20:00" } } });
+
+    const fixed = await request("POST", "/api/routines", { cookie, body: routineBody({ windowStart: "20:00", windowEnd: "08:00" }) });
+    expect(fixed).toMatchObject({ status: 201, body: { routine: { intervalMinutes: null, windowStart: "00:00", windowEnd: "00:00" } } });
+  });
+
   it("interruptor liga e desliga a rotina sem reenviar o cadastro, ate com a pasta fora do ar", async () => {
     const cookie = await sessionWithRoot();
     const id = (await request("POST", "/api/routines", { cookie, body: routineBody() })).body.routine.id as number;
@@ -364,7 +379,9 @@ describe("com sessao", () => {
     ["prompt em branco", { prompt: "   " }],
     ["agente com comando", { command: "cmd /c dir" }],
     ["intervalo fora da lista", { intervalMinutes: 7 }],
-    ["intervalo zero", { intervalMinutes: 0 }]
+    ["intervalo zero", { intervalMinutes: 0 }],
+    ["janela com fim antes do inicio", { intervalMinutes: 60, windowStart: "20:00", windowEnd: "08:00" }],
+    ["janela com hora invalida", { intervalMinutes: 60, windowStart: "8:00", windowEnd: "20:00" }]
   ])("payload invalido (%s) responde 400 sem gravar", async (_label, overrides) => {
     const cookie = await sessionWithRoot();
     expect((await request("POST", "/api/routines", { cookie, body: routineBody(overrides) })).status).toBe(400);

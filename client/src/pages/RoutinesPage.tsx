@@ -245,7 +245,7 @@ export function RoutinesPage({ onOpenSettings }: { onOpenSettings: () => void })
 
 type DirectoryOption = { value: string; label: string };
 
-/** Pastas das rotinas, pelo caminho a partir da pasta mae ("03-ferramentas/backlog"); fora dela, o caminho inteiro. */
+/** Pastas das rotinas, pelo caminho a partir da pasta mae ("03-ferramentas/05-agents-tools/backlog"); fora dela, o caminho inteiro. */
 export function directoryOptions(routines: Pick<RoutineDto, "directory">[], rootDirectory: string): DirectoryOption[] {
   const root = rootDirectory.replace(/[\\/]+$/, "");
   return [...new Set(routines.map((routine) => routine.directory))]
@@ -420,7 +420,7 @@ function RoutineCard({
       <p className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[var(--color-fg-muted)]">
         <span className="inline-flex items-center gap-1">
           <CalendarClock aria-hidden className="size-3.5" />
-          {f.formatSchedule(routine.days, routine.time, routine.intervalMinutes)}
+          {f.formatSchedule(routine.days, routine.time, routine.intervalMinutes, routine.windowStart, routine.windowEnd)}
         </span>
         <span className="inline-flex min-w-0 items-center gap-1" title={routine.directory}>
           <FolderTree aria-hidden className="size-3.5 shrink-0" />

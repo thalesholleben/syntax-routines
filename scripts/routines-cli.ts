@@ -101,9 +101,10 @@ function daysText(days: number[]): string {
   return sorted.map((day) => DAY_NAMES[day]).join(", ");
 }
 
-function scheduleText(routine: { days: number[]; time: string; intervalMinutes: number | null }): string {
-  const grade = routine.intervalMinutes === null ? `às ${routine.time}` : `a cada ${minutesText(routine.intervalMinutes)}`;
-  return `${daysText(routine.days)}, ${grade}`;
+function scheduleText(routine: { days: number[]; time: string; intervalMinutes: number | null; windowStart: string; windowEnd: string }): string {
+  if (routine.intervalMinutes === null) return `${daysText(routine.days)}, às ${routine.time}`;
+  const window = routine.windowStart === routine.windowEnd ? "" : `, das ${routine.windowStart} às ${routine.windowEnd}`;
+  return `${daysText(routine.days)}, a cada ${minutesText(routine.intervalMinutes)}${window}`;
 }
 
 function runText(run: RunRow | null): string {
@@ -195,6 +196,8 @@ function toPayload(row: RoutineRow): Record<string, unknown> {
     days: fields.days,
     time: fields.time,
     intervalMinutes: fields.intervalMinutes,
+    windowStart: fields.windowStart,
+    windowEnd: fields.windowEnd,
     prompt: fields.prompt,
     command: fields.command ?? "",
     missedPolicy: fields.missedPolicy,
