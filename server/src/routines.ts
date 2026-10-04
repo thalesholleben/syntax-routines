@@ -22,6 +22,9 @@ export interface RoutineInput {
   time: string;
   /** "A cada N minutos" nos dias marcados; nulo = hora fixa em `time`. */
   intervalMinutes: number | null;
+  /** Janela do intervalo (HH:MM); inicio igual ao fim = o dia inteiro. */
+  windowStart: string;
+  windowEnd: string;
   prompt: string;
   /** Linha de comando da rotina de script; nulo nos agentes. */
   command: string | null;
@@ -42,6 +45,8 @@ export interface RoutineRow {
   daysJson: string;
   time: string;
   intervalMinutes: number | null;
+  windowStart: string;
+  windowEnd: string;
   prompt: string;
   command: string | null;
   missedPolicy: MissedPolicy;
@@ -87,7 +92,7 @@ export interface RoutineView extends Omit<RoutineRow, "isFallbackEnabled" | "isE
 
 export const ROUTINE_COLUMNS = `id, name, agent_kind AS "agentKind", directory, model, effort,
   timeout_minutes AS "timeoutMinutes", fallback_enabled AS "isFallbackEnabled", days_json AS "daysJson", time,
-  interval_minutes AS "intervalMinutes", prompt, command, missed_policy AS "missedPolicy", enabled AS "isEnabled",
+  interval_minutes AS "intervalMinutes", window_start AS "windowStart", window_end AS "windowEnd", prompt, command, missed_policy AS "missedPolicy", enabled AS "isEnabled",
   created_at AS "createdAt", updated_at AS "updatedAt"`;
 
 export const RUN_COLUMNS = `id, routine_id AS "routineId", trigger_type AS "triggerType", scheduled_for AS "scheduledFor",
@@ -108,6 +113,8 @@ function toParams(input: RoutineInput, nowMs: number) {
     daysJson: JSON.stringify([...new Set(input.days)].sort((a, b) => a - b)),
     time: input.time,
     intervalMinutes: input.intervalMinutes,
+    windowStart: input.windowStart,
+    windowEnd: input.windowEnd,
     prompt: input.prompt,
     command: input.command,
     missedPolicy: input.missedPolicy,
@@ -120,9 +127,9 @@ export function createRoutine(db: Db, input: RoutineInput, nowMs: number): numbe
   const result = db
     .prepare(
       `INSERT INTO routines (name, agent_kind, directory, model, effort, timeout_minutes, fallback_enabled, days_json, time,
-        interval_minutes, prompt, command, missed_policy, enabled, created_at, updated_at)
+        interval_minutes, window_start, window_end, prompt, command, missed_policy, enabled, created_at, updated_at)
       VALUES (:name, :agentKind, :directory, :model, :effort, :timeoutMinutes, :fallbackEnabled, :daysJson, :time,
-        :intervalMinutes, :prompt, :command, :missedPolicy, :enabled, :now, :now)`
+        :intervalMinutes, :windowStart, :windowEnd, :prompt, :command, :missedPolicy, :enabled, :now, :now)`
     )
     .run(toParams(input, nowMs));
   return Number(result.lastInsertRowid);
@@ -133,7 +140,7 @@ export function updateRoutine(db: Db, id: number, input: RoutineInput, nowMs: nu
     .prepare(
       `UPDATE routines SET name = :name, agent_kind = :agentKind, directory = :directory, model = :model, effort = :effort,
         timeout_minutes = :timeoutMinutes, fallback_enabled = :fallbackEnabled, days_json = :daysJson, time = :time,
-        interval_minutes = :intervalMinutes, prompt = :prompt, command = :command, missed_policy = :missedPolicy,
+        interval_minutes = :intervalMinutes, window_start = :windowStart, window_end = :windowEnd, prompt = :prompt, command = :command, missed_policy = :missedPolicy,
         enabled = :enabled, updated_at = :now
       WHERE id = :id`
     )
@@ -191,7 +198,7 @@ export function listRoutines(db: Db, nowMs: number, rootDirectory: string, langu
     const directory = checkDirectory(rootDirectory, row.directory);
     return {
       ...fields,
-      nextRunAt: fields.isEnabled ? nextOccurrence({ days: fields.days, time: fields.time, intervalMinutes: fields.intervalMinutes }, nowMs) : null,
+      nextRunAt: fields.isEnabled ? nextOccurrence(fields, nowMs) : null,
       lastRun: (lastRun.get({ routineId: row.id }) as unknown as RunRow | undefined) ?? null,
       activeRun: (activeRun.get({ routineId: row.id }) as unknown as RunRow | undefined) ?? null,
       directoryWarning: directory.ok ? null : messages(language)[directory.reason]

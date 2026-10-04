@@ -44,6 +44,8 @@ it("porta ocupada rejeita sem tocar nas execucoes; com a porta livre recupera a 
       days: [1],
       time: "09:00",
       intervalMinutes: null,
+      windowStart: "00:00",
+      windowEnd: "00:00",
       prompt: "oi",
       command: null,
       missedPolicy: "SKIP",

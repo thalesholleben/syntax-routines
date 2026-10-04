@@ -60,7 +60,8 @@ no support channel with a deadline; see [SUPPORT.md](SUPPORT.md).
   (as you would type it in the terminal: cmd on Windows, `sh` on macOS and Linux) and runs in the
   chosen directory, without a window; exit code 0 succeeds, anything else fails.
 - **Fixed time or interval.** "Mon to Fri at 09:00" or "every 15 min" (5 min to 12 h) on the
-  marked days, on a grid aligned to midnight.
+  marked days, on a grid aligned to midnight. An interval can be limited to a window: "every 1 h
+  from 08:00 to 20:00" runs at 08:00, 09:00 ... 20:00 and not outside it.
 - **PC off at the scheduled time.** Each fixed-time routine chooses "skip this one" or "run at
   boot", with the delay set in Settings. Missed several times, only the latest counts.
 - **Agent usage limits.** Up to three attempts. With "switch agent automatically" on, it falls

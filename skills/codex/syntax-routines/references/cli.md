@@ -43,8 +43,8 @@ comando não existe.
 
 ## O arquivo de uma rotina
 
-`add` recebe um objeto JSON com os catorze campos. Campo que não existe na lista é erro,
-não é ignorado em silêncio.
+`add` recebe um objeto JSON com os campos abaixo; só `windowStart` e `windowEnd` podem faltar
+(valem `00:00`). Campo que não existe na lista é erro, não é ignorado em silêncio.
 
 ```json
 {
@@ -58,6 +58,8 @@ não é ignorado em silêncio.
   "days": [1, 2, 3, 4, 5],
   "time": "09:00",
   "intervalMinutes": null,
+  "windowStart": "00:00",
+  "windowEnd": "00:00",
   "prompt": "Leia as campanhas de ontem e grave o resumo em relatorios/AAAA-MM-DD.md. Se o arquivo de hoje já existir, não faça nada.",
   "command": "",
   "missedPolicy": "RUN_ON_BOOT",
@@ -77,6 +79,8 @@ não é ignorado em silêncio.
 | `days` | 0 é domingo, 6 é sábado. Pelo menos um |
 | `time` | `HH:MM` local. Ignorado quando há intervalo |
 | `intervalMinutes` | `null` para hora fixa, ou um dos valores de `settings` (5 min a 12 h) |
+| `windowStart` | `HH:MM`, hora inicial da janela do intervalo. Igual a `windowEnd`: o dia inteiro. Ignorada na hora fixa |
+| `windowEnd` | `HH:MM`, hora final, inclusive, e não pode ser menor que `windowStart`. Com horas diferentes, a grade começa na inicial: `08:00` a `20:00` de 1 em 1 h = 08:00, 09:00 ... 20:00 |
 | `prompt` | o que o agente vai fazer. Vazio em `SCRIPT` |
 | `command` | uma linha, como no cmd (`%VAR%` expande). Vazio em agente |
 | `missedPolicy` | `SKIP` ou `RUN_ON_BOOT`, para quando o PC estava desligado no horário |

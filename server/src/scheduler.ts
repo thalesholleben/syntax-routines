@@ -107,7 +107,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
         // Horario que ja tinha passado quando a rotina foi salva nao dispara.
         const from = Math.max(lastTick, routine.updatedAt);
         const days = JSON.parse(routine.daysJson) as number[];
-        const spec = { days, time: routine.time, intervalMinutes: routine.intervalMinutes };
+        const spec = { ...routine, days };
         const occurrences = occurrencesBetween(spec, from, nowMs);
         const plans = planWindow(occurrences, nowMs, routine.missedPolicy, bootDelayMinutes * 60_000, undefined, {
           isInterval: routine.intervalMinutes !== null,

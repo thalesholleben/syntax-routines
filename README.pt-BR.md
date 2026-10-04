@@ -56,7 +56,8 @@ de suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
   de comando (como você digitaria no terminal: cmd no Windows, `sh` no macOS e no Linux) e roda no
   diretório escolhido, sem janela; código de saída 0 conclui, qualquer outro é falha.
 - **Hora fixa ou intervalo.** "Seg a Sex às 09:00" ou "a cada 15 min" (de 5 min a 12 h) nos dias
-  marcados, na grade alinhada à meia-noite.
+  marcados, na grade alinhada à meia-noite. O intervalo pode ficar limitado a uma janela: "a cada
+  1 h das 08:00 às 20:00" roda às 08:00, 09:00 ... 20:00 e não fora dela.
 - **PC desligado no horário.** Cada rotina de hora fixa escolhe "Pular esta vez" ou "Executar ao
   ligar", com o atraso definido em Ajustes. Perdeu várias vezes, só a mais recente conta.
 - **Limite de uso dos agentes.** Até três tentativas. Com "Trocar de agente automaticamente"

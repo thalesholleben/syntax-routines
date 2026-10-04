@@ -12,7 +12,7 @@ function fixture() {
   db = openDb(":memory:");
   return createRoutine(db, { name: "Every five minutes", agentKind: "SCRIPT", directory: "unused", model: null,
     effort: "", timeoutMinutes: 10, isFallbackEnabled: false, days: [0, 1, 2, 3, 4, 5, 6], time: "00:00",
-    intervalMinutes: 5, prompt: "private prompt", command: "private command", missedPolicy: "SKIP", isEnabled: true }, now);
+    intervalMinutes: 5, windowStart: "00:00", windowEnd: "00:00", prompt: "private prompt", command: "private command", missedPolicy: "SKIP", isEnabled: true }, now);
 }
 function run(routineId: number, status: RunStatus, at: number, duration: number | null = null) {
   db.prepare(`INSERT INTO runs (routine_id, trigger_type, scheduled_for, run_at, status, started_at, finished_at, created_at)

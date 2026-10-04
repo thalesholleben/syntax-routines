@@ -7,6 +7,13 @@ commit on `main`.
 
 ### Added
 
+- **Time window for interval routines.** Two new fields, start time and end time (`windowStart`,
+  `windowEnd`). Equal times keep the old behaviour, all day on a grid aligned to midnight. Different
+  times run only inside the window, end included, on a grid that starts at the start time ("every
+  1 h from 08:00 to 20:00" = 08:00, 09:00 ... 20:00). The end cannot be earlier than the start.
+  Schema v4 adds the two columns with `00:00`, so existing routines keep running all day; the CLI
+  and import accept files without them.
+
 - **Newer models in the routine dialog.** Claude Opus 5.5 (`claude-opus-5-5`) and Sonnet 5.5
   (`claude-sonnet-5-5`); Codex ASTRA 6, SOL 6 and LUNA 6 (`gpt-6-astra`, `gpt-6-sol`,
   `gpt-6-luna`). The previous ones stay, now labelled with their generation (SOL 5.6, TERRA 5.6,

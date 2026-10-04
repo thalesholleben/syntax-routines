@@ -70,6 +70,34 @@ describe("occurrencesBetween por intervalo", () => {
   });
 });
 
+describe("intervalo com janela", () => {
+  const hourly8to20 = { days: [1, 2], time: "00:00", intervalMinutes: 60, windowStart: "08:00", windowEnd: "20:00" };
+
+  it("so roda dentro da janela, do inicio ao fim inclusive", () => {
+    const hours = occurrencesBetween(hourly8to20, at(14, 0), at(14, 23, 59)).map((ms) => new Date(ms).getHours());
+    expect(hours).toEqual([8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]);
+  });
+
+  it("a grade comeca na hora inicial, nao na meia-noite", () => {
+    const spec = { ...hourly8to20, intervalMinutes: 120, windowStart: "08:30", windowEnd: "13:00" };
+    expect(occurrencesBetween(spec, at(14, 0), at(14, 23))).toEqual([at(14, 8, 30), at(14, 10, 30), at(14, 12, 30)]);
+  });
+
+  it("depois do fim, a proxima e o inicio do proximo dia marcado", () => {
+    expect(nextOccurrence(hourly8to20, at(14, 20))).toBe(at(15, 8));
+    expect(nextOccurrence(hourly8to20, at(15, 20, 1))).toBe(at(21, 8));
+    expect(nextOccurrence(hourly8to20, at(14, 7, 59))).toBe(at(14, 8));
+  });
+
+  it("inicio igual ao fim e o dia inteiro, como sem janela", () => {
+    const allDay = { ...hourly8to20, windowStart: "08:00", windowEnd: "08:00" };
+    expect(occurrencesBetween(allDay, at(14, 0), at(14, 23, 59))).toEqual(
+      occurrencesBetween({ days: [1, 2], time: "00:00", intervalMinutes: 60 }, at(14, 0), at(14, 23, 59))
+    );
+    expect(occurrencesBetween(allDay, at(14, 0), at(14, 23, 59))).toHaveLength(23);
+  });
+});
+
 describe("nextOccurrence por intervalo", () => {
   it("proximo slot do dia", () => {
     expect(nextOccurrence({ days: [1], time: "09:00", intervalMinutes: 15 }, at(14, 13, 7))).toBe(at(14, 13, 15));

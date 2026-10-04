@@ -38,10 +38,12 @@ export function createFormatters(language: Language) {
     return minutes % 60 === 0 ? m.hours(minutes / 60) : `${m.hours(Math.floor(minutes / 60))} ${m.minutes(minutes % 60)}`;
   }
 
-  /** "Seg a Sex às 09:00" ou "a cada 15 min, Seg a Sex". */
-  function formatSchedule(days: number[], time: string, intervalMinutes: number | null): string {
+  /** "Seg a Sex às 09:00", "a cada 15 min, Seg a Sex" ou, com janela, "a cada 1 h, das 08:00 às 20:00, Seg a Sex". */
+  function formatSchedule(days: number[], time: string, intervalMinutes: number | null, windowStart = "00:00", windowEnd = "00:00"): string {
     const when = formatDays(days) || m.noDay;
-    return intervalMinutes === null ? m.atTime(when, time) : m.everyN(formatInterval(intervalMinutes), when);
+    if (intervalMinutes === null) return m.atTime(when, time);
+    const interval = formatInterval(intervalMinutes);
+    return windowStart === windowEnd ? m.everyN(interval, when) : m.everyNWindow(interval, windowStart, windowEnd, when);
   }
 
   function formatDateTime(ms: number | null | undefined): string {

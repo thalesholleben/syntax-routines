@@ -103,6 +103,12 @@ CREATE INDEX runs_ended ON runs (COALESCE(finished_at, created_at));
 INSERT INTO meta (key, value) VALUES ('schema_version', '2');
 `;
 
+// Schema exatamente como a v3 gravava: a v2 com as duas colunas de aviso em runs, antes da janela do intervalo.
+const SCHEMA_V3 = SCHEMA_V2.replace(
+  "  notify_attempts INTEGER NOT NULL DEFAULT 0,\n",
+  "  notify_attempts INTEGER NOT NULL DEFAULT 0,\n  notify_uncertain_at INTEGER,\n  notify_sending_at INTEGER,\n"
+).replace("('schema_version', '2')", "('schema_version', '3')");
+
 let tmp = "";
 let file = "";
 
@@ -152,8 +158,8 @@ describe("openDb", () => {
     createV1();
     const db = openDb(file);
 
-    // v1 -> v2 -> v3 na mesma abertura.
-    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "3" });
+    // v1 -> v2 -> v3 -> v4 na mesma abertura.
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "4" });
     expect(db.prepare("SELECT value FROM meta WHERE key = 'last_tick_at'").get()).toEqual({ value: "5" });
     expect(db.prepare("SELECT value FROM settings WHERE key = 'root_directory'").get()).toEqual({ value: "C:\\p" });
 
@@ -174,7 +180,9 @@ describe("openDb", () => {
       created_at: 100,
       updated_at: 200,
       command: null,
-      interval_minutes: null
+      interval_minutes: null,
+      window_start: "00:00",
+      window_end: "00:00"
     });
     // A execucao ligada a rotina sobrevive ao DROP da tabela pai (o cascade ficou desligado durante a migracao).
     const run = db.prepare("SELECT * FROM runs").get() as Record<string, unknown>;
@@ -220,7 +228,7 @@ describe("openDb", () => {
     openDb(file).close();
     const db = openDb(file);
     expect(db.prepare("SELECT COUNT(*) AS n FROM runs").get()).toEqual({ n: 1 });
-    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "3" });
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "4" });
     db.close();
   });
 
@@ -241,7 +249,7 @@ describe("openDb", () => {
     raw.close();
 
     const db = openDb(file);
-    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "3" });
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "4" });
     expect(db.prepare("SELECT * FROM runs").get()).toMatchObject({ id: 9, routine_id: 3, error: "erro", notified_at: null, notify_attempts: 4, notify_uncertain_at: null, notify_sending_at: null });
     expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
     const indexes = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'runs'").all() as { name: string }[]).map(
@@ -254,8 +262,31 @@ describe("openDb", () => {
 
     // Abrir de novo nao muda nada.
     const again = openDb(file);
-    expect(again.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "3" });
+    expect(again.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "4" });
     again.close();
+  });
+
+  it("migra a v3 para a v4: rotina de intervalo intacta, janela do dia inteiro, cascade de pe", () => {
+    expect(SCHEMA_V3).toContain("notify_sending_at INTEGER");
+    const raw = new DatabaseSync(file);
+    raw.exec("PRAGMA journal_mode = WAL;");
+    raw.exec("PRAGMA foreign_keys = ON;");
+    raw.exec(SCHEMA_V3);
+    raw.prepare(
+      `INSERT INTO routines (id, name, agent_kind, directory, model, effort, timeout_minutes, fallback_enabled, days_json, time, prompt,
+        missed_policy, enabled, command, interval_minutes, created_at, updated_at)
+      VALUES (5, 'Vigia', 'SCRIPT', 'C:\\p', NULL, '', 15, 0, '[1]', '00:00', '', 'SKIP', 1, 'cmd /c echo oi', 30, 1, 1)`
+    ).run();
+    raw.prepare("INSERT INTO runs (id, routine_id, trigger_type, scheduled_for, status, created_at) VALUES (8, 5, 'MANUAL', 10, 'SUCCEEDED', 10)").run();
+    raw.close();
+
+    const db = openDb(file);
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "4" });
+    expect(db.prepare("SELECT * FROM routines").get()).toMatchObject({ id: 5, interval_minutes: 30, window_start: "00:00", window_end: "00:00" });
+    expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
+    db.prepare("DELETE FROM routines WHERE id = 5").run();
+    expect(db.prepare("SELECT COUNT(*) AS n FROM runs").get()).toEqual({ n: 0 });
+    db.close();
   });
 
   it("falha no meio da migracao deixa a v1 intacta e o pragma religado", () => {

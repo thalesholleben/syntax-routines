@@ -207,8 +207,16 @@ try {
   const editDialog = page.getByRole("dialog", { name: "Editar rotina", exact: true });
   await editDialog.waitFor();
   await editDialog.getByRole("textbox", { name: /Comando/ }).fill(isWindows ? "cmd /c exit 3" : "exit 3");
+  await editDialog.getByLabel("Hora inicial").fill("20:00");
+  await editDialog.getByLabel("Hora final").fill("08:00");
+  await editDialog.getByRole("button", { name: "Salvar rotina" }).click();
+  await editDialog.getByText("A hora final não pode ser menor que a inicial.").waitFor();
+  check(true, "janela com a hora final antes da inicial é recusada no modal");
+  await editDialog.getByLabel("Hora inicial").fill("08:00");
+  await editDialog.getByLabel("Hora final").fill("20:00");
   await editDialog.getByRole("button", { name: "Salvar rotina" }).click();
   await editDialog.waitFor({ state: "detached" });
+  check(await scriptCard.getByText("a cada 15 min, das 08:00 às 20:00").isVisible(), "cartão do script mostra a janela do intervalo");
   await scriptCard.getByRole("button", { name: "Executar agora" }).click();
   await scriptCard.getByText("Falhou").first().waitFor({ timeout: 30_000 });
   check(true, "comando com código de saída 3 vira Falhou");
