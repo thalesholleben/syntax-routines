@@ -102,7 +102,9 @@ function buildRoutineSchema(m: Messages) {
       prompt: z.string().max(20_000),
       command: z.string().max(COMMAND_MAX_CHARS, m.commandTooLong(COMMAND_MAX_CHARS)),
       missedPolicy: z.enum(["SKIP", "RUN_ON_BOOT"]),
-      isEnabled: z.boolean()
+      isEnabled: z.boolean(),
+      // Opcional pelo mesmo motivo da janela: quem nao manda continua recebendo o e-mail de falha, como antes.
+      notifyOnFailure: z.boolean().default(true)
     })
     .superRefine((value, ctx) => {
       // HH:MM com zero a esquerda: comparar como texto e comparar o horario.

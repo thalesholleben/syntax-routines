@@ -4,7 +4,7 @@ import { DatabaseSync } from "node:sqlite";
 
 export type Db = DatabaseSync;
 
-export const SCHEMA_VERSION = 4;
+export const SCHEMA_VERSION = 5;
 const SCHEMA_VERSION_KEY = "schema_version";
 
 // Colunas em snake_case; toda leitura sai com alias camelCase (`AS "campo"`).
@@ -27,6 +27,7 @@ const ROUTINES_COLUMNS = `
   interval_minutes INTEGER,
   window_start TEXT NOT NULL DEFAULT '00:00',
   window_end TEXT NOT NULL DEFAULT '00:00',
+  notify_on_failure INTEGER NOT NULL DEFAULT 1,
   created_at INTEGER NOT NULL,
   updated_at INTEGER NOT NULL`;
 
@@ -193,6 +194,30 @@ function migrateV3ToV4(db: Db): void {
   }
 }
 
+/**
+ * v4 -> v5: routines ganha `notify_on_failure` (0/1), a escolha por rotina de mandar ou nao o e-mail de falha. As
+ * rotinas existentes ficam com 1, que e o comportamento de antes. So acrescenta coluna, no mesmo roteiro da v3.
+ */
+function migrateV4ToV5(db: Db): void {
+  db.exec("PRAGMA foreign_keys = OFF");
+  try {
+    db.exec("BEGIN IMMEDIATE");
+    try {
+      const columns = (db.prepare("PRAGMA table_info(routines)").all() as { name: string }[]).map((column) => column.name);
+      if (!columns.includes("notify_on_failure")) db.exec("ALTER TABLE routines ADD COLUMN notify_on_failure INTEGER NOT NULL DEFAULT 1");
+      const violations = db.prepare("PRAGMA foreign_key_check").all();
+      if (violations.length > 0) throw new Error(`migração v5: ${violations.length} referência(s) quebrada(s) em runs.routine_id`);
+      writeSchemaVersion(db, 5);
+      db.exec("COMMIT");
+    } catch (error) {
+      db.exec("ROLLBACK");
+      throw error;
+    }
+  } finally {
+    db.exec("PRAGMA foreign_keys = ON");
+  }
+}
+
 /** Abre (ou cria) o banco. Idempotente: nao altera linhas existentes; migra o schema quando ele e de uma versao anterior. */
 export function openDb(file: string): Db {
   if (file !== ":memory:") mkdirSync(path.dirname(file), { recursive: true });
@@ -209,6 +234,7 @@ export function openDb(file: string): Db {
       if (readSchemaVersion(db) < 2) migrateV1ToV2(db);
       if (readSchemaVersion(db) < 3) migrateV2ToV3(db);
       if (readSchemaVersion(db) < 4) migrateV3ToV4(db);
+      if (readSchemaVersion(db) < 5) migrateV4ToV5(db);
     }
   } catch (error) {
     // Sem fechar, o arquivo fica preso ate o processo morrer (no Windows nem apagar da).

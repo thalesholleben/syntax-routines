@@ -147,6 +147,17 @@ describe("routines-cli", { timeout: 30_000 }, () => {
     expect(afterKind?.isFallbackEnabled).toBe(false);
   });
 
+  it("edit desliga o e-mail de falha, show mostra, e outro patch depois nao religa", () => {
+    cli("add", writeJson("agente.json", agentRoutine));
+    expect(stored(1)?.notifyOnFailure).toBe(true);
+    const off = cli("edit", "1", writeJson("sem-email.json", { notifyOnFailure: false }));
+    expect(off.code, off.out).toBe(0);
+    expect(stored(1)?.notifyOnFailure).toBe(false);
+    expect(cli("show", "1").out).toContain("e-mail se falhar: não");
+    expect(cli("edit", "1", writeJson("hora.json", { time: "06:00" })).code).toBe(0);
+    expect(stored(1)?.notifyOnFailure).toBe(false);
+  });
+
   it("recusa campo desconhecido, diretorio fora da pasta mae e rotina invalida, sem gravar nada", () => {
     cli("add", writeJson("agente.json", agentRoutine));
 

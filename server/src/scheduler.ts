@@ -370,6 +370,7 @@ export function createScheduler({ db, runAgent, runScript, logsDir, now = Date.n
         .prepare(
           `SELECT id FROM runs
           WHERE status = 'FAILED' AND notified_at IS NULL AND notify_uncertain_at IS NULL AND notify_sending_at IS NULL
+            AND routine_id IN (SELECT id FROM routines WHERE notify_on_failure = 1)
             AND notify_attempts < :maxAttempts
             AND finished_at IS NOT NULL AND finished_at >= :since
             AND finished_at + notify_attempts * notify_attempts * 60000 <= :now

@@ -64,7 +64,9 @@ de suporte com prazo; veja [SUPPORT.md](SUPPORT.md).
   ligado, cai para o outro agente; desligado, espera o horário de reset.
 - **Aviso por e-mail.** Toda execução que termina em falha (código de saída, timeout, limite
   esgotado, diretório fora da pasta mãe, app encerrado no meio) gera um e-mail com a rotina, o
-  erro e o link do painel. Sucesso não avisa. A conta que envia é configurada num modal em Ajustes
+  erro e o link do painel. Sucesso não avisa. Cada rotina tem a chave "Avisar por e-mail quando
+  falhar", ligada por padrão: desligada, a falha fica no histórico e no log, sem e-mail, para a
+  rotina cuja falha você acompanha por outro caminho. A conta que envia é configurada num modal em Ajustes
   (Gmail com senha de app, ou qualquer servidor SMTP), testada ao salvar, com um selo que diz
   Conectado ou por que falhou. Aviso que não conseguiu sair (internet fora, por exemplo) é
   tentado de novo por até 24 h: a queda atrasa o aviso em vez de perdê-lo.

@@ -7,6 +7,12 @@ commit on `main`.
 
 ### Added
 
+- **E-mail on failure, per routine.** A new switch, "E-mail me when it fails"
+  (`notifyOnFailure`), in the routine dialog and in the CLI's `add`/`edit`. Off, a failed run stays
+  in the history and the log and no e-mail goes out; the other routines keep alerting. Schema v5
+  adds the column with `1`, so every existing routine keeps the e-mail, and the API, the CLI and
+  the import accept files without the field (it defaults to on). `show` prints the choice.
+
 - **Time window for interval routines.** Two new fields, start time and end time (`windowStart`,
   `windowEnd`). Equal times keep the old behaviour, all day on a grid aligned to midnight. Different
   times run only inside the window, end included, on a grid that starts at the start time ("every
