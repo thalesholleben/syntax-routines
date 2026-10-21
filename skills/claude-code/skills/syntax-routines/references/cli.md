@@ -43,8 +43,8 @@ comando não existe.
 
 ## O arquivo de uma rotina
 
-`add` recebe um objeto JSON com os campos abaixo; só `windowStart` e `windowEnd` podem faltar
-(valem `00:00`). Campo que não existe na lista é erro, não é ignorado em silêncio.
+`add` recebe um objeto JSON com os campos abaixo; só `windowStart` e `windowEnd` (valem `00:00`) e
+`notifyOnFailure` (vale `true`) podem faltar. Campo que não existe na lista é erro, não é ignorado em silêncio.
 
 ```json
 {
@@ -63,7 +63,8 @@ comando não existe.
   "prompt": "Leia as campanhas de ontem e grave o resumo em relatorios/AAAA-MM-DD.md. Se o arquivo de hoje já existir, não faça nada.",
   "command": "",
   "missedPolicy": "RUN_ON_BOOT",
-  "isEnabled": true
+  "isEnabled": true,
+  "notifyOnFailure": true
 }
 ```
 
@@ -85,6 +86,7 @@ comando não existe.
 | `command` | uma linha, como no cmd (`%VAR%` expande). Vazio em agente |
 | `missedPolicy` | `SKIP` ou `RUN_ON_BOOT`, para quando o PC estava desligado no horário |
 | `isEnabled` | `false` cadastra sem deixar rodar |
+| `notifyOnFailure` | `true` manda o e-mail de falha desta rotina para o destinatário de Ajustes; `false` deixa a falha só no histórico e no log |
 
 Rotina por intervalo ignora `missedPolicy`: a ocorrência perdida é descartada e a próxima
 vem em no máximo um intervalo.

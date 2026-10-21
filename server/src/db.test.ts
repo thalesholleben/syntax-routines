@@ -109,6 +109,12 @@ const SCHEMA_V3 = SCHEMA_V2.replace(
   "  notify_attempts INTEGER NOT NULL DEFAULT 0,\n  notify_uncertain_at INTEGER,\n  notify_sending_at INTEGER,\n"
 ).replace("('schema_version', '2')", "('schema_version', '3')");
 
+// Schema exatamente como a v4 gravava: a v3 com a janela do intervalo, antes do aviso por rotina.
+const SCHEMA_V4 = SCHEMA_V3.replace(
+  "  interval_minutes INTEGER,\n",
+  "  interval_minutes INTEGER,\n  window_start TEXT NOT NULL DEFAULT '00:00',\n  window_end TEXT NOT NULL DEFAULT '00:00',\n"
+).replace("('schema_version', '3')", "('schema_version', '4')");
+
 let tmp = "";
 let file = "";
 
@@ -159,7 +165,7 @@ describe("openDb", () => {
     const db = openDb(file);
 
     // v1 -> v2 -> v3 -> v4 na mesma abertura.
-    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "4" });
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: String(SCHEMA_VERSION) });
     expect(db.prepare("SELECT value FROM meta WHERE key = 'last_tick_at'").get()).toEqual({ value: "5" });
     expect(db.prepare("SELECT value FROM settings WHERE key = 'root_directory'").get()).toEqual({ value: "C:\\p" });
 
@@ -228,7 +234,7 @@ describe("openDb", () => {
     openDb(file).close();
     const db = openDb(file);
     expect(db.prepare("SELECT COUNT(*) AS n FROM runs").get()).toEqual({ n: 1 });
-    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "4" });
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: String(SCHEMA_VERSION) });
     db.close();
   });
 
@@ -249,7 +255,7 @@ describe("openDb", () => {
     raw.close();
 
     const db = openDb(file);
-    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "4" });
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: String(SCHEMA_VERSION) });
     expect(db.prepare("SELECT * FROM runs").get()).toMatchObject({ id: 9, routine_id: 3, error: "erro", notified_at: null, notify_attempts: 4, notify_uncertain_at: null, notify_sending_at: null });
     expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
     const indexes = (db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' AND tbl_name = 'runs'").all() as { name: string }[]).map(
@@ -262,7 +268,7 @@ describe("openDb", () => {
 
     // Abrir de novo nao muda nada.
     const again = openDb(file);
-    expect(again.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "4" });
+    expect(again.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: String(SCHEMA_VERSION) });
     again.close();
   });
 
@@ -281,8 +287,32 @@ describe("openDb", () => {
     raw.close();
 
     const db = openDb(file);
-    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "4" });
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: String(SCHEMA_VERSION) });
     expect(db.prepare("SELECT * FROM routines").get()).toMatchObject({ id: 5, interval_minutes: 30, window_start: "00:00", window_end: "00:00" });
+    expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
+    db.prepare("DELETE FROM routines WHERE id = 5").run();
+    expect(db.prepare("SELECT COUNT(*) AS n FROM runs").get()).toEqual({ n: 0 });
+    db.close();
+  });
+
+  it("migra a v4 para a v5: rotina intacta e com o e-mail de falha ligado, como antes, cascade de pe", () => {
+    expect(SCHEMA_V4).toContain("window_end TEXT");
+    const raw = new DatabaseSync(file);
+    raw.exec("PRAGMA journal_mode = WAL;");
+    raw.exec("PRAGMA foreign_keys = ON;");
+    raw.exec(SCHEMA_V4);
+    raw.prepare(
+      `INSERT INTO routines (id, name, agent_kind, directory, model, effort, timeout_minutes, fallback_enabled, days_json, time, prompt,
+        missed_policy, enabled, command, interval_minutes, window_start, window_end, created_at, updated_at)
+      VALUES (5, 'Vigia', 'SCRIPT', 'C:\p', NULL, '', 15, 0, '[1]', '00:00', '', 'SKIP', 1, 'cmd /c echo oi', 30, '08:00', '20:00', 1, 1)`
+    ).run();
+    raw.prepare("INSERT INTO runs (id, routine_id, trigger_type, scheduled_for, status, created_at) VALUES (8, 5, 'MANUAL', 10, 'FAILED', 10)").run();
+    raw.close();
+
+    const db = openDb(file);
+    expect(db.prepare("SELECT value FROM meta WHERE key = 'schema_version'").get()).toEqual({ value: "5" });
+    expect(db.prepare("SELECT * FROM routines").get()).toMatchObject({ id: 5, window_start: "08:00", window_end: "20:00", notify_on_failure: 1 });
+    expect(db.prepare("SELECT id, status FROM runs").get()).toEqual({ id: 8, status: "FAILED" });
     expect(db.prepare("PRAGMA foreign_keys").get()).toEqual({ foreign_keys: 1 });
     db.prepare("DELETE FROM routines WHERE id = 5").run();
     expect(db.prepare("SELECT COUNT(*) AS n FROM runs").get()).toEqual({ n: 0 });

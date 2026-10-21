@@ -30,6 +30,8 @@ export interface RoutineInput {
   command: string | null;
   missedPolicy: MissedPolicy;
   isEnabled: boolean;
+  /** Manda o e-mail de falha desta rotina (com o destinatario de Ajustes preenchido). */
+  notifyOnFailure: boolean;
 }
 
 /** Linha de `routines` com alias camelCase; booleanos ainda em 0/1. */
@@ -51,6 +53,7 @@ export interface RoutineRow {
   command: string | null;
   missedPolicy: MissedPolicy;
   isEnabled: number;
+  notifyOnFailure: number;
   createdAt: number;
   updatedAt: number;
 }
@@ -80,9 +83,10 @@ export interface RunRow {
   createdAt: number;
 }
 
-export interface RoutineView extends Omit<RoutineRow, "isFallbackEnabled" | "isEnabled" | "daysJson"> {
+export interface RoutineView extends Omit<RoutineRow, "isFallbackEnabled" | "isEnabled" | "notifyOnFailure" | "daysJson"> {
   isFallbackEnabled: boolean;
   isEnabled: boolean;
+  notifyOnFailure: boolean;
   days: number[];
   nextRunAt: number | null;
   lastRun: RunRow | null;
@@ -93,7 +97,7 @@ export interface RoutineView extends Omit<RoutineRow, "isFallbackEnabled" | "isE
 export const ROUTINE_COLUMNS = `id, name, agent_kind AS "agentKind", directory, model, effort,
   timeout_minutes AS "timeoutMinutes", fallback_enabled AS "isFallbackEnabled", days_json AS "daysJson", time,
   interval_minutes AS "intervalMinutes", window_start AS "windowStart", window_end AS "windowEnd", prompt, command, missed_policy AS "missedPolicy", enabled AS "isEnabled",
-  created_at AS "createdAt", updated_at AS "updatedAt"`;
+  notify_on_failure AS "notifyOnFailure", created_at AS "createdAt", updated_at AS "updatedAt"`;
 
 export const RUN_COLUMNS = `id, routine_id AS "routineId", trigger_type AS "triggerType", scheduled_for AS "scheduledFor",
   run_at AS "runAt", status, force_agent AS "forceAgent", agent_kind AS "agentKind", attempt, started_at AS "startedAt",
@@ -119,6 +123,7 @@ function toParams(input: RoutineInput, nowMs: number) {
     command: input.command,
     missedPolicy: input.missedPolicy,
     enabled: input.isEnabled ? 1 : 0,
+    notifyOnFailure: input.notifyOnFailure ? 1 : 0,
     now: nowMs
   };
 }
@@ -127,9 +132,9 @@ export function createRoutine(db: Db, input: RoutineInput, nowMs: number): numbe
   const result = db
     .prepare(
       `INSERT INTO routines (name, agent_kind, directory, model, effort, timeout_minutes, fallback_enabled, days_json, time,
-        interval_minutes, window_start, window_end, prompt, command, missed_policy, enabled, created_at, updated_at)
+        interval_minutes, window_start, window_end, prompt, command, missed_policy, enabled, notify_on_failure, created_at, updated_at)
       VALUES (:name, :agentKind, :directory, :model, :effort, :timeoutMinutes, :fallbackEnabled, :daysJson, :time,
-        :intervalMinutes, :windowStart, :windowEnd, :prompt, :command, :missedPolicy, :enabled, :now, :now)`
+        :intervalMinutes, :windowStart, :windowEnd, :prompt, :command, :missedPolicy, :enabled, :notifyOnFailure, :now, :now)`
     )
     .run(toParams(input, nowMs));
   return Number(result.lastInsertRowid);
@@ -141,7 +146,7 @@ export function updateRoutine(db: Db, id: number, input: RoutineInput, nowMs: nu
       `UPDATE routines SET name = :name, agent_kind = :agentKind, directory = :directory, model = :model, effort = :effort,
         timeout_minutes = :timeoutMinutes, fallback_enabled = :fallbackEnabled, days_json = :daysJson, time = :time,
         interval_minutes = :intervalMinutes, window_start = :windowStart, window_end = :windowEnd, prompt = :prompt, command = :command, missed_policy = :missedPolicy,
-        enabled = :enabled, updated_at = :now
+        enabled = :enabled, notify_on_failure = :notifyOnFailure, updated_at = :now
       WHERE id = :id`
     )
     .run({ ...toParams(input, nowMs), id });
@@ -180,8 +185,14 @@ export function deleteRoutine(db: Db, id: number): void {
 }
 
 export function toRoutineFields(row: RoutineRow): Omit<RoutineView, "nextRunAt" | "lastRun" | "activeRun" | "directoryWarning"> {
-  const { daysJson, isFallbackEnabled, isEnabled, ...rest } = row;
-  return { ...rest, days: JSON.parse(daysJson) as number[], isFallbackEnabled: isFallbackEnabled === 1, isEnabled: isEnabled === 1 };
+  const { daysJson, isFallbackEnabled, isEnabled, notifyOnFailure, ...rest } = row;
+  return {
+    ...rest,
+    days: JSON.parse(daysJson) as number[],
+    isFallbackEnabled: isFallbackEnabled === 1,
+    isEnabled: isEnabled === 1,
+    notifyOnFailure: notifyOnFailure === 1
+  };
 }
 
 export function listRoutines(db: Db, nowMs: number, rootDirectory: string, language: Language = DEFAULT_LANGUAGE): RoutineView[] {

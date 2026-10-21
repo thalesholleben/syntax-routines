@@ -30,11 +30,12 @@ const NEW_ROUTINE: RoutinePayload = {
   prompt: "",
   command: "",
   missedPolicy: "RUN_ON_BOOT",
-  isEnabled: true
+  isEnabled: true,
+  notifyOnFailure: true
 };
 
 function toPayload(routine: RoutineDto): RoutinePayload {
-  const { name, agentKind, directory, model, effort, timeoutMinutes, isFallbackEnabled, days, time, intervalMinutes, windowStart, windowEnd, prompt, command, missedPolicy, isEnabled } =
+  const { name, agentKind, directory, model, effort, timeoutMinutes, isFallbackEnabled, days, time, intervalMinutes, windowStart, windowEnd, prompt, command, missedPolicy, isEnabled, notifyOnFailure } =
     routine;
   return {
     name,
@@ -52,7 +53,8 @@ function toPayload(routine: RoutineDto): RoutinePayload {
     prompt,
     command: command ?? "",
     missedPolicy,
-    isEnabled
+    isEnabled,
+    notifyOnFailure
   };
 }
 
@@ -466,6 +468,18 @@ export function RoutineModal({
               <span>
                 {m.enabledLabel}
                 <span className="mt-1 block text-xs">{m.enabledHint}</span>
+              </span>
+            </label>
+            <label className="flex cursor-pointer items-start gap-3 py-2 text-sm text-[var(--color-fg-muted)]">
+              <input
+                type="checkbox"
+                checked={form.notifyOnFailure}
+                onChange={(event) => update({ notifyOnFailure: event.target.checked })}
+                className="mt-1 size-5 shrink-0"
+              />
+              <span>
+                {m.notifyLabel}
+                <span className="mt-1 block text-xs">{m.notifyHint}</span>
               </span>
             </label>
           </div>

@@ -213,6 +213,8 @@ const pt = {
   fallbackHint: "Desligado, a rotina espera o limite resetar e tenta de novo com o mesmo agente.",
   enabledLabel: "Rotina ativa",
   enabledHint: "Desativada, ela não roda no horário, mas ainda dá para executar agora.",
+  notifyLabel: "Avisar por e-mail quando falhar",
+  notifyHint: "Desligado, a falha fica no histórico e no log, mas não manda e-mail.",
   // saida da execucao
   runTitle: (id: string) => `Execução #${id}`,
   attempt: (n: number) => `tentativa ${n}`,
@@ -524,6 +526,8 @@ const en: Messages = {
   fallbackHint: "Off, the routine waits for the limit to reset and retries with the same agent.",
   enabledLabel: "Routine enabled",
   enabledHint: "Disabled, it does not run on schedule, but you can still run it now.",
+  notifyLabel: "E-mail me when it fails",
+  notifyHint: "Off, the failure stays in the history and the log, but no e-mail goes out.",
   runTitle: (id: string) => `Run #${id}`,
   attempt: (n: number) => `attempt ${n}`,
   scheduledFor: "Scheduled",

@@ -49,7 +49,8 @@ it("porta ocupada rejeita sem tocar nas execucoes; com a porta livre recupera a 
       prompt: "oi",
       command: null,
       missedPolicy: "SKIP",
-      isEnabled: true
+      isEnabled: true,
+      notifyOnFailure: true
     },
     Date.now()
   );

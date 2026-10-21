@@ -148,6 +148,7 @@ function routineInput(overrides: Partial<RoutineInput> = {}): RoutineInput {
     command: null,
     missedPolicy: "SKIP",
     isEnabled: true,
+    notifyOnFailure: true,
     ...overrides
   };
 }
@@ -660,6 +661,22 @@ describe("aviso por e-mail", () => {
 
     expect(await scheduler.notifyFailures()).toBe(0);
     expect(fake.sent).toHaveLength(1);
+  });
+
+  it("rotina com o e-mail de falha desligado nao manda aviso; a do lado continua mandando", async () => {
+    const calada = createRoutine(db, scriptInput({ name: "Arquivar WhatsApp", notifyOnFailure: false }), at(1, 0));
+    const critica = createRoutine(db, scriptInput({ name: "Saude de producao" }), at(1, 0));
+    writeSettings(db, { notifyEmail: "dono@example.com" });
+    const fake = createFakeMailer();
+    const { scheduler } = newScheduler(db, { mailer: fake.mailer });
+    clock = at(14, 10);
+    const runCalada = failedRun(calada, at(14, 9, 30));
+    failedRun(critica, at(14, 9, 31));
+
+    expect(await scheduler.notifyFailures()).toBe(1);
+    expect(fake.sent.map((mail) => mail.subject)).toEqual(["[Syntax Routines] Falhou: Saude de producao"]);
+    expect(notifyState(runCalada)).toEqual({ notifiedAt: null, notifyAttempts: 0 });
+    expect(await scheduler.notifyFailures()).toBe(0);
   });
 
   it("sem destinatario, sem SMTP, falha velha, sucesso ou pulada: nada e enviado", async () => {

@@ -68,7 +68,9 @@ no support channel with a deadline; see [SUPPORT.md](SUPPORT.md).
   back to the other agent; off, it waits for the reset time.
 - **E-mail on failure.** Every run that ends in failure (exit code, timeout, exhausted limit,
   directory outside the root folder, app closed mid-run) produces an e-mail with the routine,
-  the error and the panel link. Success stays quiet. The sending account is set up in a Settings
+  the error and the panel link. Success stays quiet. Each routine has an "E-mail me when it fails"
+  switch, on by default: turn it off for routines whose failures you watch some other way, and the
+  failure stays in the history and the log without an e-mail. The sending account is set up in a Settings
   dialog (Gmail with an app password, or any SMTP server), tested on save, with a badge that says
   Connected or why it failed. An alert that cannot be sent (the internet is down, say) is retried
   for up to 24 h, so an outage delays it instead of losing it.

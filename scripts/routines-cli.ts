@@ -201,7 +201,8 @@ function toPayload(row: RoutineRow): Record<string, unknown> {
     prompt: fields.prompt,
     command: fields.command ?? "",
     missedPolicy: fields.missedPolicy,
-    isEnabled: fields.isEnabled
+    isEnabled: fields.isEnabled,
+    notifyOnFailure: fields.notifyOnFailure
   };
 }
 
@@ -242,7 +243,9 @@ function printRoutine(ctx: Ctx, view: RoutineView): void {
   console.log(`  agenda: ${scheduleText(view)}`);
   console.log(`  próxima: ${view.nextRunAt === null ? "nenhuma" : when(view.nextRunAt)}`);
   console.log(`  diretório: ${view.directory}${view.directoryWarning ? ` (ATENÇÃO: ${view.directoryWarning})` : ""}`);
-  console.log(`  timeout: ${view.timeoutMinutes} min | PC desligado: ${view.missedPolicy === "SKIP" ? "pular" : "executar ao ligar"}`);
+  console.log(
+    `  timeout: ${view.timeoutMinutes} min | PC desligado: ${view.missedPolicy === "SKIP" ? "pular" : "executar ao ligar"} | e-mail se falhar: ${view.notifyOnFailure ? "sim" : "não"}`
+  );
   if (view.agentKind === "SCRIPT") {
     console.log(`  comando: ${view.command ?? ""}`);
   } else {

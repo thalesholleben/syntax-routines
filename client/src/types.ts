@@ -47,6 +47,8 @@ export interface RoutinePayload {
   command: string;
   missedPolicy: MissedPolicy;
   isEnabled: boolean;
+  /** Manda o e-mail de falha desta rotina (com o destinatario de Ajustes preenchido). */
+  notifyOnFailure: boolean;
 }
 
 export interface RoutineDto extends Omit<RoutinePayload, "command"> {
